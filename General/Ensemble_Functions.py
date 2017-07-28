@@ -1,0 +1,137 @@
+from __future__ import division
+import numpy as np
+import pandas
+import math
+from keras.models import Sequential
+from rep.estimators import XGBoostClassifier
+import json
+import os
+from six.moves import cPickle as pickle
+import glob
+
+def ensemblePredict(inData, ensemble, weights, n=-1): #Loop though each classifier and predict data class
+    pred = np.zeros((len(inData), 1))
+    if n == -1:
+        n = len(ensemble)+1
+    ensemble = ensemble[0:n] #Use only specified number of classifiers
+    weights = weights[0:n]
+    weights = weights/weights.sum() #Renormalise weights
+    for i, model in enumerate(ensemble):
+    	if isinstance(model, Sequential):
+        	pred += weights[i] * model.predict(inData, verbose=0)
+        elif isinstance(model, XGBoostClassifier):
+        	pred += weights[i] * model.predict_proba(inData)[:,1]
+        else:
+        	print "MVA not currently supported"
+        	return None
+    return pred
+
+def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_weights/train_'):
+    cycle = int(cycle)
+    model = None
+    if mva == 'NN':
+	    if loadMode == 'model':
+	    	model = load_model(location + str(cycle) + '.h5')
+	    elif loadMode == 'weights':
+	    	model = model_from_json(open(location + str(cycle) + '.json').read())
+	    	model.load_weights(location + str(cycle) + '.h5')
+	    	model.compile(**compileArgs)
+	    else:
+	    	print "No other loading currently supported"
+	else:
+		with open(location + str(cycle) + '.pkl', 'r') as fin:   
+        	model = pickle.load(fin)
+    return model
+
+def getWeights(value, metric, weighting='reciprocal'):
+	if weighting == 'reciprocal':
+    	return 1/value
+    elif:
+    	print "No other weighting currently supported"
+    return None
+
+def assembleEnsemble(results, size, metric, compileArgs, weighting='reciprocal', mva='NN', loadMode='model', location='train_weights/train_'):
+	ensemble = []
+	weights = []
+	print "Choosing ensemble by", metric
+	dtype = [('cycle', int), ('result', float)]
+	values = np.sort(np.array([(i, result[metric]) for i, result in enumerate(results)], dtype=dtype),
+	                 order=['result'])
+	for i in range(min([size, len(results)])):
+	    ensemble.append(loadModel(values[i]['cycle']), compileArgs, mva, loadMode, location)
+	    weights.append(getWeights(values[i]['result'], metric, weighting))
+	    print "Model", i, "is", values[i]['cycle'], "with", metric, "=", values[i]['result']
+	weights = np.array(weights)
+	weights = weights/weights.sum() #normalise weights
+	return ensemble, weights
+
+def saveEnsemble(name, ensemble, weights, compileArgs, overwrite=False, inputPipe=None, outputPipe=None, saveMode='weights'):
+	if not((len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.json"))) and not overwrite):
+		print "Ensemble already exists with that name, call with overwrite=True to force save"
+	else:
+		os.system("rm " + name + "*.json")
+		os.system("rm " + name + "*.h5")
+		os.system("rm " + name + "*.pkl")
+		saveCompileArgs = False
+		for i, model in enumerate(ensemble):
+			if isinstance(model, Sequential):
+				saveCompileArgs = True
+				if saveMode == 'weights':
+			    	json_string = model.to_json()
+			    	open(name + '_' + str(i) + '.json', 'w').write(json_string)
+			    	model.save_weights(name + '_' + str(i) + '.h5')
+			    elif saveMode == 'model':
+			    	model.save(name + '_' + str(i) + '.h5')
+			    else:
+			    	print "No other saving currently supported"
+			    	return None
+	        elif isinstance(model, XGBoostClassifier):
+	        	with open(name + '_' + str(i) + '.pkl', 'w') as fout:
+        			pickle.dump(model, fout)
+	        else:
+	        	print "MVA not currently supported"
+	        	return None
+	    if saveCompileArgs:
+			with open(name + '_compile.json', 'w') as fout:
+			    json.dump(compileArgs, fout)
+		with open(name + '_weights.pkl', 'w') as fout:
+		    pickle.dump(weights, fout)
+		if inputPipe != None:
+			with open(name + '_inputPipe.pkl', 'w') as fout:
+			    pickle.dump(inputPipe, fout)
+		if outputPipe != None:
+			with open(name + '_outputPipe.pkl', 'w') as fout:
+			    pickle.dump(outputPipe, fout)
+
+def loadEnsemble(name, inputPipeLoad=False, outputPipeLoad=False, loadMode='weights'):
+	ensemble = []
+	weights = None
+	inputPipe = None
+	outputPipe = None
+	compileArgs = None
+	try:
+		with open(name + '_compile.json', 'r') as fin:
+		    compileArgs = json.load(fin)
+	except:
+		continue
+	for i in range(ensembleSize):
+		if len(glob.glob(name + "_" + str(i) + '.h5')): #BDT
+			with open(name + '_' + str(i) + '.pkl', 'r') as fin:   
+        		model = pickle.load(fin)	
+        else: #NN
+			if loadMode == 'weights':
+			    model = model_from_json(open(name + '_' + str(i) + '.json').read())
+			    model.load_weights(name + "_" + str(i) + '.h5')
+			elif loadMode == 'model':
+				model = load_model(name + "_" + str(i) + '.h5')
+		    model.compile(**compileArgs)
+	    ensemble.append(model)
+	with open(name + '_weights.pkl', 'r') as fin:
+	    weights = pickle.load(fin)
+	if inputPipeLoad:
+		with open(name + '_inputPipe.pkl', 'r') as fin:
+	    	inputPipe = pickle.load(fin)
+	if outputPipeLoad:
+		with open(name + '_outputPipe.pkl', 'r') as fin:
+	    	outputPipe = pickle.load(fin)
+	return ensemble, weights, compileArgs, inputPipe, outputPipe
