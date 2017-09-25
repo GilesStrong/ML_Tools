@@ -102,7 +102,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
             aucs = mpRun(aucArgs, rocauc)
             meanScores = {}
             for i in labels:
-                meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i])/math.sqrt(len(aucs[i])))
+                meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
                 print i + ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1])
         else:
             meanScores = {}
