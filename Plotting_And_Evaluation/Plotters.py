@@ -1,10 +1,16 @@
-import types
+from __future__ import division
+
+from sklearn.metrics import roc_auc_score, roc_curve
+
 import seaborn as sns
 import matplotlib.pyplot as plt
+sns.set_style("white")
+
 import numpy as np
 import pandas
-sns.set_style("white")
-from Bootstrap import mpRun 
+import types
+
+from Bootstrap import * 
 
 def uncertRound(value, uncert):
     i = 0
@@ -42,102 +48,44 @@ def plotFeat(inData, feat, cuts=None, labels=None, params={}):
     plt.xlabel(feat, fontsize=24, color='black')
     plt.show()
 
-def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params={}):
+def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
     buildCurves = True
-    mulitplot = False
-    if isinstance(inData, types.NoneType) and isinstance(curves, types.NoneType):
+    if isinstance(inData, types.NoneType) == isinstance(curves, types.NoneType):
         print "Must pass either targets and preds, or curves"
         return -1
-    if isinstance(curves, types.ListType) and not isinstance(labels, types.ListType):
-        print "{} curves passed, but no labels".format(len(curves))
-        return -1
-    elif isinstance(curves, types.ListType) and isinstance(labels, types.ListType):
-        if len(curves) != len(labels):
-            print "{} curves passed, but {} labels".format(len(curves), len(labels))
-            return -1
-        elif isinstance(curves[0], roc_curve) and isinstance(labels[0], types.StringType):
-            buildCurves = False
-            multiplot = True
-        else:
-            print "Passing multiple curves requires list of SK-Learn roc_curves and list of string labels"
-            return -1
-    elif isinstance(curves, roc_curve):
-            buildCurves = False
-    else:
-        print "Passing single curves requires SK-Learn roc_curve"
-        return -1
+    if not isinstance(curves, types.NoneType):
+        buildCurves = False
 
     if buildCurves:
-        if not isinstance(inData, pandas.core.series.Series):
-            if isinstance(inData, types.list):
-                if not isinstance(inData[0], pandas.core.series.Series):
-                    print "Building curves requires (list of) pandas.core.series.Series"
-                    return -1
-                elif not isinstance(labels, types.ListType):
-                    print "{} curves passed, but no labels".format(len(inData))
-                    return -1
-                elif isinstance(inData, types.ListType) and isinstance(labels, types.ListType):
-                    if len(inData) != len(labels):
-                        print "{} arrays passed, but {} labels".format(len(inData), len(labels))
-                        return -1
-                    elif isinstance(inData[0], pandas.core.series.Series) and isinstance(labels[0], types.StringType):
-                        multiplot = True
-                    else:
-                        print "Passing multiple curves requires list of SK-Learn roc_curves and list of string labels"
-                        return -1
-                print "{} targtes passed, but {} preds".format(len(targets), len(preds))
-                return -1
-            else:
-                print "Building curves requires (list of) pandas.core.series.Series"
-                return -1
-
         curves = {}
         if bootstrap:
             aucArgs = []
-            if multiplot:
-                for i in range(len(inData)):
-                    aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
-            else:
-                aucArgs.append({'labels':inData[targetName], 'preds':inData[predName], 'name':i, 'indeces':inData.index.tolist()})
+            for i in range(len(inData)):
+                aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
             aucs = mpRun(aucArgs, rocauc)
             meanScores = {}
             for i in labels:
                 meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
-                print i + ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1])
+                print str(i)+ ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1])
         else:
             meanScores = {}
-            if multiplot:
-                for i in range(len(inData)):
-                    meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
-                    print i + ' ROC AUC: {}'.format(meanScores[i])
-            else:
-                meanScores = roc_auc_score(inData[targetName].values, inData[predName])
-                print 'ROC AUC: {}'.format(meanScores[i])
-
-        if multiplot:
             for i in range(len(inData)):
-                curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
-        else:
-            curves = roc_curve(inData[targetName].values, inData[predName])
+                meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
+                print str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]])
+        for i in range(len(inData)):
+            curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
 
     plt.figure(figsize=[8, 8])
-    if multiplot:
-        for i in range(len(curves)):
-            if isinstance(params, types.ListType):
-                tempParams = params[i]
-            else:
-                tempParams = params
-            if buildCurves:
-                meanScore = uncertRound(*meanScores[labels[i]])
-                plt.plot(*curves[labels[i]], label=labels[i] + r', $auc={}\pm{}$'.format(meanScore[0], meanScore[1]), **params)
-            else:
-                plt.plot(*curves[i], label=labels[i], **params)
-    else:
+    for i in range(len(curves)):
         if buildCurves:
-            meanScores = uncertRound(*meanScores)
-            plt.plot(*curves, label=labels + r', $auc={}\pm{}$'.format(meanScores[0], meanScores[1]), **params)
+            if bootstrap:
+                meanScore = uncertRound(*meanScores[labels[i]])
+                plt.plot(*curves[labels[i]], label=labels[i] + r', $auc={}\pm{}$'.format(meanScore[0], meanScore[1]), **params[i])
+            else:
+                plt.plot(*curves[labels[i]], label=labels[i] + r', $auc={:.5f}$'.format(meanScores[labels[i]]), **params[i])
         else:
-            plt.plot(*curves, label=labels, **params)
+            plt.plot(*curves[i], label=labels[i], **params[i])
+    
     if baseline:
         plt.plot([0, 1], [0, 1], 'k--', label='No discrimination')
     plt.xlabel('Background acceptance', fontsize=24, color='black')
@@ -148,4 +96,34 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
         plt.xscale('log', nonposx='clip')
     plt.xticks(fontsize=16, color='black')
     plt.yticks(fontsize=16, color='black')
+    plt.show()
+
+def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_class',
+                     lim=(0,1), logy=True, params={'hist' : True, 'kde' : False, 'norm_hist' : True}):
+    plt.figure(figsize=(16, 8))
+    for i in range(len(inData)):
+        sns.distplot(inData[i][predName], label=labels[i], **params)
+    plt.legend(loc='best', fontsize=16)
+    plt.xlabel("Class prediction", fontsize=24, color='black')
+    plt.xlim(lim)
+    plt.ylabel(r"$\frac{1}{N}\ \frac{dN}{dp}$", fontsize=24, color='black')
+    if logy:
+        plt.yscale('log', nonposy='clip')
+    plt.xticks(fontsize=16, color='black')
+    plt.yticks(fontsize=16, color='black')
+    plt.show()       
+
+def getStackedClassPredPlot(inData, weights, labels=['Background', 'Signal'], predName='pred_class',
+                     lim=(0,1), logy=True, nBins=50):
+    hist_params = {'normed': False, 'bins': nBins, 'alpha': 0.4}
+    plt.figure(figsize=(16, 8))
+    for i in range(len(inData)):
+        weight = np.empty_like(inData[i][predName])
+        weight.fill(weights[i]*nBins/len(inData[i]))
+        plt.hist(inData[i][predName], range=lim, label=labels[i], weights=weight, **hist_params)
+    if logy:
+        plt.yscale('log', nonposy='clip')
+    plt.legend(loc='best', fontsize=16)
+    plt.xlabel("Class prediction", fontsize=24, color='black')
+    plt.ylabel( r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
     plt.show()
