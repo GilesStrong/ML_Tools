@@ -16,7 +16,13 @@ def uncertRound(value, uncert):
     i = 0
     while uncert*(10**i) <= 1:
         i += 1
-    return round(value, i), round(uncert, i)
+
+    roundUncert = round(uncert, i)
+    roundValue = round(value, i)
+    if int(roundUncert) == roundUncert:
+        roundUncert = int(roundUncert)
+        roundValue = int(roundValue)
+    return roundValue, roundUncert
 
 def plotFeat(inData, feat, cuts=None, labels=None, params={}):
     loop = False
@@ -113,7 +119,7 @@ def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_cla
     plt.yticks(fontsize=16, color='black')
     plt.show()       
 
-def getStackedClassPredPlot(inData, weights, labels=['Background', 'Signal'], predName='pred_class',
+def getWeightedClassPredPlot(inData, weights, labels=['Background', 'Signal'], predName='pred_class',
                      lim=(0,1), logy=True, nBins=50):
     hist_params = {'normed': False, 'bins': nBins, 'alpha': 0.4}
     plt.figure(figsize=(16, 8))
@@ -121,6 +127,24 @@ def getStackedClassPredPlot(inData, weights, labels=['Background', 'Signal'], pr
         weight = np.empty_like(inData[i][predName])
         weight.fill(weights[i]*nBins/len(inData[i]))
         plt.hist(inData[i][predName], range=lim, label=labels[i], weights=weight, **hist_params)
+    if logy:
+        plt.yscale('log', nonposy='clip')
+    plt.legend(loc='best', fontsize=16)
+    plt.xlabel("Class prediction", fontsize=24, color='black')
+    plt.ylabel( r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
+    plt.show()
+
+def getStackedClassPredPlot(inData, weights, labels=['Signal', 'Background'], predName='pred_class',
+                     lim=(0,1), logy=True, nBins=50, colours = ['b', 'g']):
+    hist_params = {'normed': False, 'bins': nBins, 'alpha': 0.4, 'stacked':True}
+    plt.figure(figsize=(16, 8))
+    setWeights = []
+    for i in range(len(inData)):
+        weight = np.empty_like(inData[i][predName])
+        weight.fill(weights[i]*nBins/len(inData[i]))
+        setWeights.append(weight)
+    plt.hist([inData[i][predName] for i in range(len(inData))], range=lim,
+             label=labels, weights=setWeights, color=colours, **hist_params)
     if logy:
         plt.yscale('log', nonposy='clip')
     plt.legend(loc='best', fontsize=16)

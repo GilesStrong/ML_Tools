@@ -9,7 +9,10 @@ from six.moves import cPickle as pickle
 import glob
 
 from keras.models import Sequential,model_from_json, load_model
+
 from rep.estimators import XGBoostClassifier
+
+from sklearn.metrics import roc_auc_score
 
 def ensemblePredict(inData, ensemble, weights, outputPipe = None, nOut = 1, n=-1): #Loop though each classifier and predict data class
     pred = np.zeros((len(inData), nOut))
@@ -20,7 +23,7 @@ def ensemblePredict(inData, ensemble, weights, outputPipe = None, nOut = 1, n=-1
     weights = weights/weights.sum() #Renormalise weights
     for i, model in enumerate(ensemble):
         if isinstance(model, Sequential):
-        	tempPred =  model.predict(inData, verbose=0)
+            tempPred =  model.predict(inData, verbose=0)
         elif isinstance(model, XGBoostClassifier):
             tempPred = model.predict_proba(inData)[:,1]
         else:
@@ -140,3 +143,9 @@ def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fals
         with open(name + '_outputPipe.pkl', 'r') as fin:
             outputPipe = pickle.load(fin)
     return ensemble, weights, compileArgs, inputPipe, outputPipe
+
+def testEnsembleAUC(X, y, ensemble, weights, size=10):
+    for i in range(size):
+        pred = ensemblePredict(X, ensemble, weights, n=i+1)
+        auc = roc_auc_score(y, pred)
+        print 'Ensemble with {} classifiers, AUC = {:2f}'.format(i+1, auc)
