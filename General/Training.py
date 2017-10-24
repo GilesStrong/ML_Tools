@@ -23,7 +23,7 @@ from Misc_Functions import uncertRound
 from Plotters import plotHistory
 
 def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
-    classWeights='auto', saveLoc='train_weights/', patience=10):
+    classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):
     start = timeit.default_timer()
     results = []
     histories = []
@@ -47,6 +47,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     for i, (train, test) in enumerate(folds):
         print "Running fold", i+1, "/", nSplits
         os.system("rm " + saveLoc + "best.h5")
+        foldStart = timeit.default_timer()
 
         model = None
         model = modelGen(**modelGenParams)
@@ -56,10 +57,14 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         earlyStop = EarlyStopping(monitor='val_loss', patience=patience, verbose=1, mode='auto')
         saveBest = ModelCheckpoint(saveLoc +  "best.h5", monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True, mode='auto', period=1)
         
+        weights=None
+        if not isinstance(sampleWeights, types.NoneType):
+            weights = sampleWeights[train]
+        
         model.fit(X[train], y[train],
                   validation_data = (X[test], y[test]),
                   callbacks = [earlyStop, saveBest, lossHistory],
-                  class_weight = classWeights,
+                  class_weight = classWeights, sample_weight=weights,
                   **trainParams)
         histories.append(lossHistory.losses)
         model.load_weights(saveLoc +  "best.h5")
@@ -69,10 +74,14 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0))
         print "Score is:", results[-1]
 
+        print("Fold took {:.3f}s\n".format(time.time() - foldStart))
+
         model.save(saveLoc +  'train_' + str(i) + '.h5')
         with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
             pickle.dump(results, fout)
 
+    print("\n______________________________________")
+    print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
     plotHistory(histories)
 
@@ -81,4 +90,6 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     if binary:
         meanAUC = uncertRound(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
         print "Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1])
+    print("\n______________________________________")
+
     return results, histories
