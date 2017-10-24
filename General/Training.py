@@ -20,7 +20,7 @@ import sys
 sys.path.append('../Plotting_And_Evaluation')
 from Callbacks import *
 from Misc_Functions import uncertRound
-from Plotters import plotHistory
+from Plotters import plotTrainingHistory
 
 def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):
@@ -38,11 +38,11 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     binary = True
     nClasses = len(np.unique(y))
     if nClasses > 2:
-        print nClasses, "classes found, running in multiclass mode"
+        print nClasses, "classes found, running in multiclass mode\n"
         y = utils.to_categorical(y, num_classes=nClasses)
         binary = False
     else:
-        print nClasses, "classes found, running in binary mode"
+        print nClasses, "classes found, running in binary mode\n"
 
     for i, (train, test) in enumerate(folds):
         print "Running fold", i+1, "/", nSplits
@@ -74,7 +74,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0))
         print "Score is:", results[-1]
 
-        print("Fold took {:.3f}s\n".format(time.time() - foldStart))
+        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
         model.save(saveLoc +  'train_' + str(i) + '.h5')
         with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
@@ -83,7 +83,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    plotHistory(histories)
+    plotTrainingHistory(histories)
 
     meanLoss = uncertRound(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
     print "Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1])

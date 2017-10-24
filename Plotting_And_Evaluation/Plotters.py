@@ -144,9 +144,9 @@ def getStackedClassPredPlot(inData, weights, labels=['Signal', 'Background'], pr
     plt.show()
 
 def plotHistory(histories):
-    print "Depreciate, move to plotTrainingHistory"
+    print "Depreciated, move to plotTrainingHistory"
     plotTrainingHistory(histories)
-
+    
 def plotTrainingHistory(histories):
     plt.figure(figsize=(16,8))
     for i, history in enumerate(histories):
