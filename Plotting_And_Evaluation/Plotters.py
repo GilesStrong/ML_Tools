@@ -10,19 +10,10 @@ import numpy as np
 import pandas
 import types
 
+import sys
+sys.path.append('../General')
+from Misc_Functions import uncertRound
 from Bootstrap import * 
-
-def uncertRound(value, uncert):
-    i = 0
-    while uncert*(10**i) <= 1:
-        i += 1
-
-    roundUncert = round(uncert, i)
-    roundValue = round(value, i)
-    if int(roundUncert) == roundUncert:
-        roundUncert = int(roundUncert)
-        roundValue = int(roundValue)
-    return roundValue, roundUncert
 
 def plotFeat(inData, feat, cuts=None, labels=None, params={}):
     loop = False
@@ -151,3 +142,22 @@ def getStackedClassPredPlot(inData, weights, labels=['Signal', 'Background'], pr
     plt.xlabel("Class prediction", fontsize=24, color='black')
     plt.ylabel( r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
     plt.show()
+
+def plotHistory(histories):
+    print "Depreciate, move to plotTrainingHistory"
+    plotTrainingHistory(histories)
+
+def plotTrainingHistory(histories):
+    plt.figure(figsize=(16,8))
+    for i, history in enumerate(histories):
+        if i == 0:
+            plt.plot(history['loss'], color='g', label='Training')
+            plt.plot(history['val_loss'], color='b', label='Testing')
+        else:
+            plt.plot(history['loss'], color='g')
+            plt.plot(history['val_loss'], color='b')
+    plt.legend(loc='best', fontsize=16)
+    plt.xticks(fontsize=16, color='black')
+    plt.yticks(fontsize=16, color='black')
+    plt.xlabel("Epoch", fontsize=24, color='black')
+    plt.ylabel("Loss", fontsize=24, color='black')
