@@ -90,6 +90,6 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     if binary:
         meanAUC = uncertRound(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
         print "Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1])
-    print("\n______________________________________")
+    print("______________________________________")
 
     return results, histories
