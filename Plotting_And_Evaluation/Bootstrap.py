@@ -33,10 +33,17 @@ def rocauc(args, out_q):
     boot = []
     if 'name' not in args: args['name'] = ''
     if 'n'    not in args: args['n'] = 100
-    for i in range(args['n']):
-        points = np.random.choice(args['indeces'], len(args['indeces']), replace=True)
-        boot.append(roc_auc_score(args['labels'].loc[points].values, 
-                                  args['preds'].loc[points].values))
+    if 'weights' in args: 
+        for i in range(args['n']):
+            points = np.random.choice(args['indeces'], len(args['indeces']), replace=True)
+            boot.append(roc_auc_score(args['labels'].loc[points].values, 
+                                      args['preds'].loc[points].values,
+                                      sample_weight=args['weights'].loc[points].values))
+    else:
+        for i in range(args['n']):
+            points = np.random.choice(args['indeces'], len(args['indeces']), replace=True)
+            boot.append(roc_auc_score(args['labels'].loc[points].values, 
+                                      args['preds'].loc[points].values))
     outdict[args['name']] = boot
     out_q.put(outdict)
 
