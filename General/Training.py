@@ -16,11 +16,9 @@ import types
 import numpy as np
 import os
 
-import sys
-sys.path.append('../Plotting_And_Evaluation')
-from Callbacks import *
-from Misc_Functions import uncertRound
-from Plotters import plotTrainingHistory
+from ML_Tools.General.Callbacks import *
+from ML_Tools.General.Misc_Functions import uncertRound
+from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
 
 def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):

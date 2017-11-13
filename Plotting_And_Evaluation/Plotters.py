@@ -10,10 +10,8 @@ import numpy as np
 import pandas
 import types
 
-import sys
-sys.path.append('../General')
-from Misc_Functions import uncertRound
-from Bootstrap import * 
+from ML_Tools.General.Misc_Functions import uncertRound
+from ML_Tools.Plotting_And_Evaluation.Bootstrap import * 
 
 def plotFeat(inData, feat, cuts=None, labels=None, params={}):
     loop = False

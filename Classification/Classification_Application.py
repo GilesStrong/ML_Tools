@@ -13,9 +13,7 @@ from sklearn.pipeline import Pipeline
 import theano
 from keras.models import Sequential
 
-import sys
-sys.path.append('../General')
-from Ensemble_Functions import *
+from ML_Tools.General.Ensemble_Functions import *
 
 class Classifier():
     def __init__(self, name, features, inputPipeLoad=True):
