@@ -145,7 +145,7 @@ def plotHistory(histories):
     print "Depreciated, move to plotTrainingHistory"
     plotTrainingHistory(histories)
     
-def plotTrainingHistory(histories):
+def plotTrainingHistory(histories, save=False):
     plt.figure(figsize=(16,8))
     for i, history in enumerate(histories):
         if i == 0:
@@ -159,3 +159,7 @@ def plotTrainingHistory(histories):
     plt.yticks(fontsize=16, color='black')
     plt.xlabel("Epoch", fontsize=24, color='black')
     plt.ylabel("Loss", fontsize=24, color='black')
+    plt.show()
+
+    if save:
+        plt.savefig(save)
