@@ -34,7 +34,7 @@ def ensemblePredict(inData, ensemble, weights, outputPipe = None, nOut = 1, n=-1
         pred += weights[i] * tempPred
     return pred
 
-def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_weights/train_'):
+def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_weights/train_'): 
     cycle = int(cycle)
     model = None
     if mva == 'NN':
@@ -73,7 +73,7 @@ def assembleEnsemble(results, size, metric, compileArgs, weighting='reciprocal',
     weights = weights/weights.sum() #normalise weights
     return ensemble, weights
 
-def saveEnsemble(name, ensemble, weights, compileArgs, overwrite=False, inputPipe=None, outputPipe=None, saveMode='weights'):
+def saveEnsemble(name, ensemble, weights, compileArgs, overwrite=False, inputPipe=None, outputPipe=None, saveMode='weights'): #Todo add saving of input feature names
     if (len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.h5")) or len(glob.glob(name + "*.pkl"))) and not overwrite:
         print "Ensemble already exists with that name, call with overwrite=True to force save"
     else:
@@ -111,7 +111,7 @@ def saveEnsemble(name, ensemble, weights, compileArgs, overwrite=False, inputPip
             with open(name + '_outputPipe.pkl', 'w') as fout:
                 pickle.dump(outputPipe, fout)
 
-def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='weights'):
+def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='weights'): #Todo add loading of input feature names
     ensemble = []
     weights = None
     inputPipe = None

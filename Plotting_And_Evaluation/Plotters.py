@@ -149,11 +149,23 @@ def plotTrainingHistory(histories, save=False):
     plt.figure(figsize=(16,8))
     for i, history in enumerate(histories):
         if i == 0:
-            plt.plot(history['loss'], color='g', label='Training')
-            plt.plot(history['val_loss'], color='b', label='Testing')
+            try:
+                plt.plot(history['loss'], color='g', label='Training')
+            except:
+                pass
+            try:
+                plt.plot(history['val_loss'], color='b', label='Testing')
+            except:
+                pass
         else:
-            plt.plot(history['loss'], color='g')
-            plt.plot(history['val_loss'], color='b')
+            try:
+                plt.plot(history['loss'], color='g')
+            except:
+                pass
+            try:
+                plt.plot(history['val_loss'], color='b')
+            except:
+                pass
     plt.legend(loc='best', fontsize=16)
     plt.xticks(fontsize=16, color='black')
     plt.yticks(fontsize=16, color='black')
