@@ -20,14 +20,11 @@ from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
 from ML_Tools.General.Ensemble_Functions import *
 
-def getBatch(index, datafile, weightName):
+def getBatch(index, datafile):
     index = str(index)
     weights = None
-    if not isinstance(weightName, types.NoneType):
-        if 'fold_' + index + '/' + weightName in datafile:
-            weights = np.array(datafile['fold_' + index + '/' + weightName])
-        else:
-            print "Weights requested, but", weightName, "not found in datafile"
+    if 'fold_' + index + '/weights' in datafile:
+        weights = np.array(datafile['fold_' + index + '/weights'])
     return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
             'targets':np.array(datafile['fold_' + index + '/targets']),
             'weights':weights}
@@ -38,7 +35,7 @@ def getFolds(n, nSplits):
     test = n
     return train, test
 
-def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, weightName='weights', getBatch=getBatch,
+def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, trainOnWeights=True, getBatch=getBatch,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
     os.system("mkdir " + saveLoc)
@@ -78,7 +75,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, w
             epochStart = timeit.default_timer()
 
             for n in trainID: #Loop through training folds
-                trainbatch = getBatch(n, data, weightName) #Load fold data
+                trainbatch = getBatch(n, data) #Load fold data
                 subEpoch += 1
                 
                 if binary == None: #First run, check classification mode
@@ -91,12 +88,19 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, w
                     else:
                         print nClasses, "classes found, running in binary mode\n"
 
-                model.fit(trainbatch['inputs'], trainbatch['targets'],
-                          class_weight = 'auto', sample_weight=trainbatch['weights'],
-                          **trainParams) #Train for one epoch
+                if trainOnWeights:
+                    model.fit(trainbatch['inputs'], trainbatch['targets'],
+                              class_weight = 'auto', sample_weight=trainbatch['weights'],
+                              **trainParams) #Train for one epoch
 
-                
-                loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                else:
+                    model.fit(trainbatch['inputs'], trainbatch['targets'],
+                              class_weight = 'auto',
+                              **trainParams) #Train for one epoch
+                    
+                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+
                 lossHistory.append(loss)
 
                 if loss <= best or best < 0: #Save best
@@ -125,9 +129,12 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, w
         results.append({})
         results[-1]['loss'] = best
         if binary:
+            if not isinstance(testbatch['weights'], types.NoneType):
+                results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
+                                                     model.predict(testbatch['inputs'], verbose=0),
+                                                     sample_weight=testbatch['weights'])
             results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'],
-                                                 model.predict(testbatch['inputs'], verbose=0),
-                                                 sample_weight=testbatch['weights'])
+                                                 model.predict(testbatch['inputs'], verbose=0))
         print "Score is:", results[-1]
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
@@ -140,12 +147,9 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, w
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
-
-    meanLoss = uncertRound(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
-    print "Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1])
-    if binary:
-        meanAUC = uncertRound(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
-        print "Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1])
+    for score in results:
+        mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
+    print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
     print("______________________________________\n")
                       
     if logoutput:
