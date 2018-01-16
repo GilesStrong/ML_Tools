@@ -20,12 +20,14 @@ from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
 from ML_Tools.General.Ensemble_Functions import *
 
-def getBatch(index, datafile):
+def getBatch(index, datafile, weightName):
     index = str(index)
-    if 'fold_' + index + '/weights' in datafile:
-        weights = np.array(datafile['fold_' + index + '/weights'])
-    else:
-        weights = None
+    weights = None
+    if not isinstance(weightName, types.NoneType):
+        if 'fold_' + index + '/' + weightName in datafile:
+            weights = np.array(datafile['fold_' + index + '/' + weightName])
+        else:
+            print "Weights requested, but", weightName, "not found in datafile"
     return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
             'targets':np.array(datafile['fold_' + index + '/targets']),
             'weights':weights}
@@ -36,7 +38,7 @@ def getFolds(n, nSplits):
     test = n
     return train, test
 
-def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, getBatch=getBatch,
+def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, weightName='weights', getBatch=getBatch,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
     os.system("mkdir " + saveLoc)
@@ -76,7 +78,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, g
             epochStart = timeit.default_timer()
 
             for n in trainID: #Loop through training folds
-                trainbatch = getBatch(n, data) #Load fold data
+                trainbatch = getBatch(n, data, weightName) #Load fold data
                 subEpoch += 1
                 
                 if binary == None: #First run, check classification mode
