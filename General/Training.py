@@ -5,7 +5,6 @@ from sklearn.metrics import roc_auc_score, roc_curve
 
 from keras.models import Sequential, model_from_json, load_model
 from keras.layers import Dense, Activation
-from keras.models import Sequential
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras import backend as K
 from keras import utils
@@ -39,6 +38,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         print nClasses, "classes found, running in multiclass mode\n"
         y = utils.to_categorical(y, num_classes=nClasses)
         binary = False
+        modelGenParams['nOut'] = nClasses
     else:
         print nClasses, "classes found, running in binary mode\n"
 
@@ -69,7 +69,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
 
         results.append({})
         results[-1]['loss'] = model.evaluate(X[test], y[test], verbose=0)
-        if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0))
+        if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0), sample_weight=weights)
         print "Score is:", results[-1]
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
@@ -81,7 +81,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    plotTrainingHistory(histories)
+    plotTrainingHistory(histories, saveLoc + 'history.png')
 
     meanLoss = uncertRound(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
     print "Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1])

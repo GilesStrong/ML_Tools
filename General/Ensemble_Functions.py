@@ -25,7 +25,7 @@ def ensemblePredict(inData, ensemble, weights, outputPipe = None, nOut = 1, n=-1
         if isinstance(model, Sequential):
             tempPred =  model.predict(inData, verbose=0)
         elif isinstance(model, XGBoostClassifier):
-            tempPred = model.predict_proba(inData)[:,1]
+            tempPred = model.predict_proba(inData)[:,1][:, np.newaxis] #Works for one output, might need to be fixed for multiclass
         else:
             print "MVA not currently supported"
             return None
@@ -58,7 +58,7 @@ def getWeights(value, metric, weighting='reciprocal'):
         print "No other weighting currently supported"
     return None
 
-def assembleEnsemble(results, size, metric, compileArgs, weighting='reciprocal', mva='NN', loadMode='model', location='train_weights/train_'):
+def assembleEnsemble(results, size, metric, compileArgs=None, weighting='reciprocal', mva='NN', loadMode='model', location='train_weights/train_'):
     ensemble = []
     weights = []
     print "Choosing ensemble by", metric
@@ -73,7 +73,7 @@ def assembleEnsemble(results, size, metric, compileArgs, weighting='reciprocal',
     weights = weights/weights.sum() #normalise weights
     return ensemble, weights
 
-def saveEnsemble(name, ensemble, weights, compileArgs, overwrite=False, inputPipe=None, outputPipe=None, saveMode='weights'): #Todo add saving of input feature names
+def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inputPipe=None, outputPipe=None, saveMode='weights'): #Todo add saving of input feature names
     if (len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.h5")) or len(glob.glob(name + "*.pkl"))) and not overwrite:
         print "Ensemble already exists with that name, call with overwrite=True to force save"
     else:

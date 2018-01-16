@@ -43,7 +43,7 @@ def plotFeat(inData, feat, cuts=None, labels=None, params={}):
     plt.xlabel(feat, fontsize=24, color='black')
     plt.show()
 
-def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
+def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
     buildCurves = True
     if isinstance(inData, types.NoneType) == isinstance(curves, types.NoneType):
         print "Must pass either targets and preds, or curves"
@@ -57,6 +57,8 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
             aucArgs = []
             for i in range(len(inData)):
                 aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
+                if not isinstance(weightName, types.NoneType):
+                    aucArgs[-1]['weights'] = inData[i][weightName]
             aucs = mpRun(aucArgs, rocauc)
             meanScores = {}
             for i in labels:
@@ -65,19 +67,25 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
         else:
             meanScores = {}
             for i in range(len(inData)):
-                meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
+                if isinstance(weightName, types.NoneType):
+                    meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
+                else:
+                    meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName], sample_weight=inData[i][weightName])
                 print str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]])
         for i in range(len(inData)):
-            curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
+            if isinstance(weightName, types.NoneType):
+                curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
+            else:
+                curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values, sample_weight=inData[i][weightName].values)[:2]
 
     plt.figure(figsize=[8, 8])
     for i in range(len(curves)):
         if buildCurves:
             if bootstrap:
                 meanScore = uncertRound(*meanScores[labels[i]])
-                plt.plot(*curves[labels[i]], label=labels[i] + r', $auc={}\pm{}$'.format(meanScore[0], meanScore[1]), **params[i])
+                plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={}\pm{}$'.format(meanScore[0], meanScore[1]), **params[i])
             else:
-                plt.plot(*curves[labels[i]], label=labels[i] + r', $auc={:.5f}$'.format(meanScores[labels[i]]), **params[i])
+                plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={:.5f}$'.format(meanScores[labels[i]]), **params[i])
         else:
             plt.plot(*curves[i], label=labels[i], **params[i])
     
@@ -93,11 +101,14 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
     plt.yticks(fontsize=16, color='black')
     plt.show()
 
-def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_class',
+def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_class', weightName=None,
                      lim=(0,1), logy=True, params={'hist' : True, 'kde' : False, 'norm_hist' : True}):
     plt.figure(figsize=(16, 8))
     for i in range(len(inData)):
-        sns.distplot(inData[i][predName], label=labels[i], **params)
+        hist_kws = {}
+        if not isinstance(weightName, types.NoneType):
+            hist_kws['weights'] = inData[i][weightName]
+        sns.distplot(inData[i][predName], label=labels[i], hist_kws=hist_kws, **params)
     plt.legend(loc='best', fontsize=16)
     plt.xlabel("Class prediction", fontsize=24, color='black')
     plt.xlim(lim)
@@ -106,40 +117,51 @@ def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_cla
         plt.yscale('log', nonposy='clip')
     plt.xticks(fontsize=16, color='black')
     plt.yticks(fontsize=16, color='black')
-    plt.show()       
+    plt.show() 
 
-def getWeightedClassPredPlot(inData, weights, labels=['Background', 'Signal'], predName='pred_class',
-                     lim=(0,1), logy=True, nBins=50):
-    hist_params = {'normed': False, 'bins': nBins, 'alpha': 0.4}
-    plt.figure(figsize=(16, 8))
-    for i in range(len(inData)):
-        weight = np.empty_like(inData[i][predName])
-        weight.fill(weights[i]*nBins/len(inData[i]))
-        plt.hist(inData[i][predName], range=lim, label=labels[i], weights=weight, **hist_params)
-    if logy:
-        plt.yscale('log', nonposy='clip')
-    plt.legend(loc='best', fontsize=16)
-    plt.xlabel("Class prediction", fontsize=24, color='black')
-    plt.ylabel( r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
-    plt.show()
+def _getSamples(inData, sampleName, weightName):
+    samples = set(inData[sampleName])
+    weights=[np.sum(inData[inData[sampleName] == sample][weightName]) for sample in samples]
+    return [x[0] for x in np.array(sorted(zip(samples, weights), key=lambda x: x[1]))] #Todo improve sorting
 
-def getStackedClassPredPlot(inData, weights, labels=['Signal', 'Background'], predName='pred_class',
-                     lim=(0,1), logy=True, nBins=50, colours = ['b', 'g']):
-    hist_params = {'normed': False, 'bins': nBins, 'alpha': 0.4, 'stacked':True}
+def getSamplePredPlot(inData, 
+                      targetName='gen_target', sampleName='gen_sample', predName='pred_class', weightName='gen_weight',
+                      lim=(0,1), nBins = 35, logy=True, pallet='nipy_spectral', desat=0.8,
+                      hist_params={'normed': False, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
+    
+    hist_params['bins'] = nBins
+    hist_params['range'] = lim
+    
     plt.figure(figsize=(16, 8))
-    setWeights = []
-    for i in range(len(inData)):
-        weight = np.empty_like(inData[i][predName])
-        weight.fill(weights[i]*nBins/len(inData[i]))
-        setWeights.append(weight)
-    plt.hist([inData[i][predName] for i in range(len(inData))], range=lim,
-             label=labels, weights=setWeights, color=colours, **hist_params)
-    if logy:
-        plt.yscale('log', nonposy='clip')
-    plt.legend(loc='best', fontsize=16)
-    plt.xlabel("Class prediction", fontsize=24, color='black')
-    plt.ylabel( r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
-    plt.show()
+    
+    sig = (inData[targetName] == 1)
+    bkg = (inData[targetName] == 0)
+    
+    with sns.color_palette(pallet, len(set(inData[sampleName])), desat=desat):
+        
+        samples = _getSamples(inData[bkg], sampleName, weightName)
+        plt.hist([inData[inData[sampleName] == sample][predName] for sample in samples],
+                 weights=[inData[inData[sampleName] == sample][weightName] for sample in samples],
+                 label=samples, **hist_params)
+
+        samples = _getSamples(inData[sig], sampleName, weightName)
+        for sample in samples:
+            plt.hist(inData[inData[sampleName] == sample][predName],
+                     weights=inData[inData[sampleName] == sample][weightName],
+                     label='Signal ' + sample, histtype='step', linewidth='3', **hist_params)
+
+        plt.legend(loc='best', fontsize=16)
+        plt.xlabel("Class prediction", fontsize=24, color='black')
+        plt.xlim(lim)
+        if hist_params['normed']:
+            plt.ylabel(r"$\frac{1}{\mathcal{A}\sigma} \frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
+        else:
+            plt.ylabel(r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
+        if logy:
+            plt.yscale('log', nonposy='clip')
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
+        plt.show()      
 
 def plotHistory(histories):
     print "Depreciated, move to plotTrainingHistory"

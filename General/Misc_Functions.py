@@ -1,3 +1,5 @@
+from sklearn.model_selection import train_test_split
+
 def uncertRound(value, uncert):
     i = 0
     while uncert*(10**i) <= 1:
@@ -9,3 +11,6 @@ def uncertRound(value, uncert):
         roundUncert = int(roundUncert)
         roundValue = int(roundValue)
     return roundValue, roundUncert
+
+def splitDevVal(inData, size=0.2, seed=1337):
+    return train_test_split([i for i in inData.index.tolist()], test_size=size, random_state=seed)
