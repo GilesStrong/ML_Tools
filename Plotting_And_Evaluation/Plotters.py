@@ -127,7 +127,7 @@ def _getSamples(inData, sampleName, weightName):
 def getSamplePredPlot(inData, 
                       targetName='gen_target', sampleName='gen_sample', predName='pred_class', weightName='gen_weight',
                       lim=(0,1), nBins = 35, logy=True, pallet='nipy_spectral', desat=0.8,
-                      hist_params={'normed': False, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
+                      hist_params={'normed': True, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
     
     hist_params['bins'] = nBins
     hist_params['range'] = lim
