@@ -147,7 +147,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, t
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
-    for score in results:
+    for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
     print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
     print("______________________________________\n")
