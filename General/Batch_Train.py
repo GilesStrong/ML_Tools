@@ -157,16 +157,16 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, t
         log_file.close()
     return results, histories
 
-def saveBatchPred(batchPred, fold, datafile):
+def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     try:
-        datafile.create_dataset(fold + "/pred_class", shape=batchPred.shape, dtype='float32')
+        datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
     except RuntimeError:
         pass
     
-    pred = datafile[fold + "/pred_class"]
+    pred = datafile[fold + "/" + predName]
     pred[...] = batchPred
         
-def batchEnsemblePredict(ensemble, weights, datafile, ensembleSize=None, verbose=False):
+def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', ensembleSize=None, verbose=False):
     if isinstance(ensembleSize, types.NoneType):
         ensembleSize = len(ensemble)
 
@@ -182,7 +182,7 @@ def batchEnsemblePredict(ensemble, weights, datafile, ensembleSize=None, verbose
         if verbose: 
             print "Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch))
 
-        saveBatchPred(batchPred, fold, datafile)
+        saveBatchPred(batchPred, fold, datafile, predName=predName)
         
 def getFeature(feature, datafile, nFolds=-1, ravel=True):
     data = []

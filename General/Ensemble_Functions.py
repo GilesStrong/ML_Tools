@@ -14,7 +14,7 @@ from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
-def ensemblePredict(inData, ensemble, weights, outputPipe = None, nOut = 1, n=-1): #Loop though each classifier and predict data class
+def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
     pred = np.zeros((len(inData), nOut))
     if n == -1:
         n = len(ensemble)+1
@@ -54,6 +54,8 @@ def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_we
 def getWeights(value, metric, weighting='reciprocal'):
     if weighting == 'reciprocal':
         return 1/value
+    if weighting == 'uniform':
+        return 1
     else:
         print "No other weighting currently supported"
     return None
