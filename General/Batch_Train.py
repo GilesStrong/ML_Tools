@@ -157,6 +157,119 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, t
         log_file.close()
     return results, histories
 
+def batchTrainRegressor(data, nSplits,
+                        modelGen, modelGenParams,
+                        trainParams, trainOnWeights=True, getBatch=getBatch,
+                        extraMetrics=None,
+                        saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
+    
+    os.system("mkdir " + saveLoc)
+    os.system("rm " + saveLoc + "*.h5")
+    os.system("rm " + saveLoc + "*.json")
+    os.system("rm " + saveLoc + "*.pkl")
+    os.system("rm " + saveLoc + "*.png")
+    os.system("rm " + saveLoc + "*.log")
+    
+    if logoutput:
+        old_stdout = sys.stdout
+        log_file = open(saveLoc + 'training_log.log', 'w')
+        sys.stdout = log_file
+
+    start = timeit.default_timer()
+    results = []
+    histories = []
+    binary = None
+
+    for fold in xrange(nSplits):
+        foldStart = timeit.default_timer()
+        print "Running fold", fold+1, "/", nSplits
+        os.system("rm " + saveLoc + "best.h5")
+        best = -1
+        epochCounter = 0
+        subEpoch = 0
+        stop = False
+        lossHistory = []
+        trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
+        testbatch = getBatch(testID, data) #Load testing fold
+
+        model = None
+        model = modelGen(**modelGenParams)
+        model.reset_states #Just checking
+
+        for epoch in xrange(maxEpochs):
+            epochStart = timeit.default_timer()
+
+            for n in trainID: #Loop through training folds
+                trainbatch = getBatch(n, data) #Load fold data
+                subEpoch += 1
+
+                if trainOnWeights:
+                    model.fit(trainbatch['inputs'], trainbatch['targets'],
+                              sample_weight=trainbatch['weights'],
+                              **trainParams) #Train for one epoch
+
+                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                else:
+                    model.fit(trainbatch['inputs'], trainbatch['targets'],
+                              **trainParams) #Train for one epoch
+                    
+                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+
+                lossHistory.append(loss)
+
+                if loss <= best or best < 0: #Save best
+                    best = loss
+                    epochCounter = 0
+                    model.save_weights(saveLoc + "best.h5")
+                    if verbose:
+                        print '{} New best found: {}'.format(subEpoch, best)
+                else:
+                    epochCounter += 1
+
+                if epochCounter >= patience: #Early stopping
+                    if verbose:
+                        print 'Early stopping after {} epochs'.format(subEpoch)
+                    stop = True
+                    break
+            
+            if stop:
+                break
+
+        model.load_weights(saveLoc +  "best.h5")
+
+        histories.append({})
+        histories[-1]['val_loss'] = lossHistory
+        
+        results.append({})
+        results[-1]['loss'] = best
+        
+        if not isinstance(extraMetrics, types.NoneType):
+            metrics = extraMetrics(model.predict(testbatch['inputs'], verbose=0), testbatch['targets'], testbatch['weights'])
+            for metric in metrics:
+                results[-1][metric] = metrics[metric]
+
+        print "Score is:", results[-1]
+
+        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
+
+        model.save(saveLoc +  'train_' + str(fold) + '.h5')
+        with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
+            pickle.dump(results, fout)
+
+    print("\n______________________________________")
+    print("Training finished")
+    print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
+    plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
+    for score in results[0]:
+        mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
+    print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
+    print("______________________________________\n")
+                      
+    if logoutput:
+        sys.stdout = old_stdout
+        log_file.close()
+    return results, histories
+
 def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     try:
         datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
