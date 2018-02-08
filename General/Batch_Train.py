@@ -160,7 +160,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, t
 def batchTrainRegressor(data, nSplits,
                         modelGen, modelGenParams,
                         trainParams, trainOnWeights=True, getBatch=getBatch,
-                        extraMetrics=None,
+                        extraMetrics=None, monitorData=None,
                         saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
     os.system("mkdir " + saveLoc)
@@ -180,6 +180,13 @@ def batchTrainRegressor(data, nSplits,
     histories = []
     binary = None
 
+    monitor = False
+    if not isinstance(monitorData, types.NoneType):
+        monitorInputs = monitorData['inputs']
+        monitorTargets = monitorData['targets']
+        monitor = True
+        print "Using a monitor sample to judge convergence"
+
     for fold in xrange(nSplits):
         foldStart = timeit.default_timer()
         print "Running fold", fold+1, "/", nSplits
@@ -189,6 +196,7 @@ def batchTrainRegressor(data, nSplits,
         subEpoch = 0
         stop = False
         lossHistory = []
+        monitorHistory = []
         trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
         testbatch = getBatch(testID, data) #Load testing fold
 
@@ -217,8 +225,13 @@ def batchTrainRegressor(data, nSplits,
 
                 lossHistory.append(loss)
 
-                if loss <= best or best < 0: #Save best
-                    best = loss
+                monLoss = loss
+                if monitor:
+                    monLoss = model.evaluate(monitorInputs, monitorTargets, verbose=0)
+                    monitorHistory.append(monLoss)
+
+                if monLoss <= best or best < 0: #Save best
+                    best = monLoss
                     epochCounter = 0
                     model.save_weights(saveLoc + "best.h5")
                     if verbose:
@@ -239,6 +252,7 @@ def batchTrainRegressor(data, nSplits,
 
         histories.append({})
         histories[-1]['val_loss'] = lossHistory
+        histories[-1]['mon_loss'] = monitorHistory
         
         results.append({})
         results[-1]['loss'] = best

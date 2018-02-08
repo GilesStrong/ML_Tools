@@ -179,6 +179,10 @@ def plotTrainingHistory(histories, save=False):
                 plt.plot(history['val_loss'], color='b', label='Testing')
             except:
                 pass
+            try:
+                plt.plot(history['mon_loss'], color='r', label='Monitoring')
+            except:
+                pass
         else:
             try:
                 plt.plot(history['loss'], color='g')
@@ -186,6 +190,10 @@ def plotTrainingHistory(histories, save=False):
                 pass
             try:
                 plt.plot(history['val_loss'], color='b')
+            except:
+                pass
+            try:
+                plt.plot(history['mon_loss'], color='r')
             except:
                 pass
     plt.legend(loc='best', fontsize=16)
