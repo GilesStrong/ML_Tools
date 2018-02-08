@@ -7,12 +7,14 @@ def bootstrap(args, out_q):
     outdict = {}
     mean = []
     std = []
+    c68 = []
     boot = []
     if 'name' not in args: args['name'] = ''
     if 'n'    not in args: args['n']    = 100
     if 'kde'  not in args: args['kde']  = False
     if 'mean' not in args: args['mean'] = False
     if 'std'  not in args: args['std']  = False  
+    if 'c68'  not in args: args['c68']  = False  
     for i in range(args['n']):
         points = np.random.choice(args['data'], len(args['data']), replace=True)
         if args['kde']:
@@ -23,9 +25,12 @@ def bootstrap(args, out_q):
             mean.append(points.mean())
         if args['std']:
             std.append(points.std())
+        if args['c68']:
+            c68.append(np.percentile(np.abs(points), 68))
     if args['kde']:  outdict[args['name'] + '_kde']  = boot
     if args['mean']: outdict[args['name'] + '_mean'] = mean
     if args['std']:  outdict[args['name'] + '_std']  = std
+    if args['c68']:  outdict[args['name'] + '_c68']  = c68
     out_q.put(outdict)
 
 def rocauc(args, out_q):
