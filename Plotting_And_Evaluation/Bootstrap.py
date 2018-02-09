@@ -26,7 +26,7 @@ def bootstrap(args, out_q):
         if args['std']:
             std.append(points.std())
         if args['c68']:
-            c68.append(np.percentile(np.abs(points), 68))
+            c68.append(np.percentile(np.abs(points), 68.2))
     if args['kde']:  outdict[args['name'] + '_kde']  = boot
     if args['mean']: outdict[args['name'] + '_mean'] = mean
     if args['std']:  outdict[args['name'] + '_std']  = std
