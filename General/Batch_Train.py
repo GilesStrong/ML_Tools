@@ -4,7 +4,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, roc_curve
 
 from keras.models import Sequential, model_from_json, load_model
-from keras.layers import Dense, Activation
+from keras.layers import Dense, Activation, Dropout
 from keras.models import Sequential
 from keras import backend as K
 from keras import utils
