@@ -286,7 +286,6 @@ def batchTrainRegressor(data, nSplits,
     return results, histories
 
 def saveBatchPred(batchPred, fold, datafile, predName='pred'):
-    fold = str(fold)
     try:
         datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
     except RuntimeError:
