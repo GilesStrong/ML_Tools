@@ -286,6 +286,7 @@ def batchTrainRegressor(data, nSplits,
     return results, histories
 
 def saveBatchPred(batchPred, fold, datafile, predName='pred'):
+    fold = str(fold)
     try:
         datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
     except RuntimeError:
@@ -298,8 +299,7 @@ def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', ensembleS
     if isinstance(ensembleSize, types.NoneType):
         ensembleSize = len(ensemble)
 
-    for i, fold in enumerate(datafile): #Todo make it work out number of folds
-
+    for i, fold in enumerate(datafile):
         if verbose:
             print 'Predicting batch {} out of {}'.format(i+1, len(datafile))
             start = timeit.default_timer()
