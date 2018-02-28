@@ -13,6 +13,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 sns.set_style("white")
 
+from ML_Tools.General.PreProc import getPreProcPipes
+
 def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target', datatype='float32'):
     inputPipe, outputPipe = getPreProcPipes(normIn=True)
     inputPipe.fit(data[trainFeatures].values.astype(datatype))
@@ -36,7 +38,7 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
     for i, (train, test) in enumerate(folds):
         print "Running fold", i+1, "/10"
         
-        xgbClass = XGBClassifier()
+        xgbClass = XGBClassifier(n_jobs=4)
         if weights != None:
             xgbClass.fit(X[train], y[train], sample_weight=w[train])
             print 'ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1]), sample_weight=w[test])
@@ -56,7 +58,7 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
     scores = np.array([featureImportance[i]/10 for i in names])
     importance = np.array(sorted(zip(names, scores), key=lambda x: x[1], reverse=True))
 
-    print len(importantFeatures), "important features identified"
+    print len(list(set(importantFeatures))), "important features identified"
     print 'Feature\tImportance'
     print '---------------------'
     for i in importance:

@@ -13,7 +13,7 @@ import types
 from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Bootstrap import * 
 
-def plotFeat(inData, feat, cuts=None, labels=None, params={}):
+def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, params={}):
     loop = False
     if not isinstance(cuts, types.NoneType):
         if isinstance(cuts, types.ListType):
@@ -32,9 +32,27 @@ def plotFeat(inData, feat, cuts=None, labels=None, params={}):
                 tempParams = params[i]
             else:
                 tempParams = params
-            sns.distplot(inData[cuts[i]][feat], label=labels[i], **tempParams)
+
+            if plotBulk: #Ignore tails for indicative plotting
+                featRange = np.percentile(inData.loc[cuts[i], feat], [1,99])
+                
+                cut = (cuts[i])
+                cut = cut & (inData[cut][feat] > featRange[0]) & (inData[cut][feat] < featRange[1])
+                plotData = inData.loc[cut, feat]
+            else:
+                plotData = inData.loc[cuts[i], feat]
+                
+            sns.distplot(plotData, label=labels[i], **tempParams)
     else:
-        sns.distplot(inData[feat], **params)
+        if plotBulk: #Ignore tails for indicative plotting
+            featRange = np.percentile(inData[feat], [1,99])
+            
+            cut = (inData[feat] > featRange[0]) & (inData[feat] < featRange[1])
+            
+            plotData = inData.loc[cut, feat]
+        else:
+            plotData = inData[feat]
+        sns.distplot(plotData, **params)
     if loop:
         plt.legend(loc='best', fontsize=16)
     plt.xticks(fontsize=16, color='black')
