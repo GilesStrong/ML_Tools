@@ -158,6 +158,52 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, t
         log_file.close()
     return results, histories
 
+def batchLRFindClassifier(data, nSplits, modelGen, modelGenParams, trainParams, trainOnWeights=True,
+                          lrBounds=[1e-5, 10], getBatch=getBatch, verbose=False):
+
+    start = timeit.default_timer()
+    binary = None
+    
+    foldStart = timeit.default_timer()
+
+    model = None
+    model = modelGen(**modelGenParams)
+    model.reset_states #Just checking
+    
+    trainbatch = getBatch(np.random.choice(range(nSplits)), data) #Load fold
+    nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
+    if verbose: print "Using {} steps".format(nSteps)   
+        
+    lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
+
+    if binary == None: #Check classification mode
+        binary = True
+        nClasses = len(np.unique(trainbatch['targets']))
+        if nClasses > 2:
+            print nClasses, "classes found, running in multiclass mode\n"
+            trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
+            binary = False
+        else:
+            print nClasses, "classes found, running in binary mode\n"
+
+    if trainOnWeights:
+        model.fit(trainbatch['inputs'], trainbatch['targets'],
+                  class_weight = 'auto', sample_weight=trainbatch['weights'],
+                  callbacks = [lrFinder], **trainParams) #Train for one epoch
+
+    else:
+        model.fit(trainbatch['inputs'], trainbatch['targets'],
+                  class_weight = 'auto',callbacks = [lrFinder], **trainParams) #Train for one epoch
+
+    print("\n______________________________________")
+    print("Training finished")
+    print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
+    lrFinder.plot_lr()    
+    lrFinder.plot(n_skip=10)
+    print("______________________________________\n")
+        
+    return lrFinder
+
 def batchTrainRegressor(data, nSplits,
                         modelGen, modelGenParams,
                         trainParams, trainOnWeights=True, getBatch=getBatch,
