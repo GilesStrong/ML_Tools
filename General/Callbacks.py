@@ -1,4 +1,13 @@
+from __future__ import division
+
 from keras.callbacks import Callback
+from keras import backend as K
+
+import math
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.set_style("white")
 
 class LossHistory(Callback):
     def __init__(self, trData):
@@ -13,9 +22,9 @@ class LossHistory(Callback):
         self.losses['loss'].append(self.model.evaluate(self.trainingData[0], self.trainingData[1], verbose=0))
         self.losses['val_loss'].append(logs.get('val_loss'))
 
-from keras.callbacks import Callback
-
 class LRFinder(Callback):
+    '''Adapted from fastai version'''
+
     def __init__(self, nSteps=300, lrBounds=[1e-7, 10], verbose=0):
         super(LRFinder, self).__init__()
         self.verbose = verbose
