@@ -134,7 +134,6 @@ def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fals
                 model.load_weights(name + "_" + str(i) + '.h5')
             elif loadMode == 'model':
                 model = load_model(name + "_" + str(i) + '.h5')
-            model.compile(**compileArgs)
         ensemble.append(model)
     with open(name + '_weights.pkl', 'r') as fin:
         weights = pickle.load(fin)
