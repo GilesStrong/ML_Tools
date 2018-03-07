@@ -248,7 +248,7 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True):
         return data.ravel()
     return data
 
-def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, useCosAnneal=False, trainOnWeights=True, getBatch=getBatch,
+def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, cosAnnealMult=0, trainOnWeights=True, getBatch=getBatch,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
     os.system("mkdir " + saveLoc)
@@ -269,7 +269,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, u
     binary = None
 
 
-    if useCosAnneal: print "Using cosine annealing"
+    if cosAnnealMult: print "Using cosine annealing"
     if trainOnWeights: print "Training using weights"
 
     for fold in xrange(nSplits):
@@ -289,8 +289,8 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, u
         model.reset_states #Just checking
 
         callbacks = []
-        if useCosAnneal:
-            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), 1)
+        if cosAnnealMult:
+            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult)
             callbacks.append(cosAnneal)
 
         for epoch in xrange(maxEpochs):
