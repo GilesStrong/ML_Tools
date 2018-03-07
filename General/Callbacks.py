@@ -4,6 +4,7 @@ from keras.callbacks import Callback
 from keras import backend as K
 
 import math
+import numpy as np
 
 import seaborn as sns
 import matplotlib.pyplot as plt

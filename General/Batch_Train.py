@@ -405,7 +405,7 @@ def batchCosAnnealTrainClassifier(data, nSplits, modelGen, modelGenParams, train
         model = None
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
-        cosAnneal = CosAnneal(math.ceil(len(trainData['fold_0/targets'])/trainParams['batch_size']), 1)
+        cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), 1)
         for epoch in xrange(maxEpochs):
             for n in trainID: #Loop through training folds
                 trainbatch = getBatch(n, data) #Load fold data
@@ -453,8 +453,6 @@ def batchCosAnnealTrainClassifier(data, nSplits, modelGen, modelGenParams, train
             
             if stop:
                 break
-            
-        cosAnneal.plot_lr()
 
         model.load_weights(saveLoc +  "best.h5")
 
