@@ -76,3 +76,15 @@ def getCorrMat(data0, data1 = None):
     cmap = sns.diverging_palette(220, 10, as_cmap=True)
     sns.heatmap(corr, cmap=cmap, vmax=1, center=0,
                 square=True, linewidths=.5, cbar_kws={"shrink": .5})
+
+def xgCompare(datasets, targets):
+    for i in range(len(datasets)):
+        X_train, X_test, y_train, y_test = train_test_split(datasets[i], targets[i])
+        
+        xgb = XGBClassifier(n_jobs=4)
+        xgb.fit(X_train, y_train)
+        
+        trainAUC = roc_auc_score(y_train, xgb.predict_proba(X_train)[:,1])
+        testAUC = roc_auc_score(y_test, xgb.predict_proba(X_test)[:,1])
+        
+        print "Dataset {}, train:test ROC AUC {:.5f}:{:.5f}".format(i, trainAUC, testAUC)
