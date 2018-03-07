@@ -25,7 +25,7 @@ class LossHistory(Callback):
 class LRFinder(Callback):
     '''Adapted from fastai version'''
 
-    def __init__(self, nSteps=300, lrBounds=[1e-7, 10], verbose=0):
+    def __init__(self, nSteps, lrBounds=[1e-7, 10], verbose=0):
         super(LRFinder, self).__init__()
         self.verbose = verbose
         

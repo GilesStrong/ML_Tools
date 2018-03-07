@@ -13,7 +13,7 @@ import types
 from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Bootstrap import * 
 
-def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, params={}):
+def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}):
     loop = False
     if not isinstance(cuts, types.NoneType):
         if isinstance(cuts, types.ListType):
@@ -24,7 +24,9 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, params={}):
             elif len(cuts) != len(labels):
                 print "{} plots requested, but {} labels passed".format(len(cuts), len(labels))
                 return -1
-
+    
+    weightData = None
+    
     plt.figure(figsize=(16, 8))
     if loop:
         for i in range(len(cuts)):
@@ -34,24 +36,44 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, params={}):
                 tempParams = params
 
             if plotBulk: #Ignore tails for indicative plotting
-                featRange = np.percentile(inData.loc[cuts[i], feat], [1,99])
+                featRange = np.percentile(inData[feat], [1,99])
+                #featRange = np.percentile(inData.loc[cuts[i], feat], [1,99])
+                if featRange[0] == featRange[1]:break
                 
                 cut = (cuts[i])
                 cut = cut & (inData[cut][feat] > featRange[0]) & (inData[cut][feat] < featRange[1])
-                plotData = inData.loc[cut, feat]
+                if isinstance(weightName, types.NoneType):
+                    plotData = inData.loc[cut, feat]
+                else:
+                    plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
+                    
             else:
-                plotData = inData.loc[cuts[i], feat]
+                if isinstance(weightName, types.NoneType):
+                    plotData = inData.loc[cuts[i], feat]
+                else:
+                    plotData = np.random.choice(inData.loc[cuts[i], feat], nSamples, p=inData.loc[cuts[i], weightName]/np.sum(inData.loc[cuts[i], weightName]))
                 
             sns.distplot(plotData, label=labels[i], **tempParams)
     else:
         if plotBulk: #Ignore tails for indicative plotting
             featRange = np.percentile(inData[feat], [1,99])
+            if featRange[0] == featRange[1]:return -1
             
             cut = (inData[feat] > featRange[0]) & (inData[feat] < featRange[1])
             
-            plotData = inData.loc[cut, feat]
+            
+            if isinstance(weightName, types.NoneType):
+                plotData = inData.loc[cut, feat]
+            else:
+                plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
+                
+                
         else:
-            plotData = inData[feat]
+            if isinstance(weightName, types.NoneType):
+                plotData = inData[feat]
+            else:
+                plotData = np.random.choice(inData[feat], nSamples, p=inData[weightName]/np.sum(inData[weightName]))
+                                
         sns.distplot(plotData, **params)
     if loop:
         plt.legend(loc='best', fontsize=16)
