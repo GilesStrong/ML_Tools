@@ -268,6 +268,10 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, u
     histories = []
     binary = None
 
+
+    if useCosAnneal: print "Using cosine annealing"
+    if trainOnWeights: print "Training using weights"
+
     for fold in xrange(nSplits):
         foldStart = timeit.default_timer()
         print "Running fold", fold+1, "/", nSplits
