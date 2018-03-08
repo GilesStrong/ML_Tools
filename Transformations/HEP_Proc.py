@@ -1,16 +1,28 @@
 import pandas
 import numpy as np
 
-def moveToCartesian(inData, particle, z = True):
-    pt = inData.loc[inData.index[:], particle + "_pT"]
+def moveToCartesian(inData, particle, z=True, drop=False):
+    try:
+        pt = inData.loc[inData.index[:], particle + "_pT"]
+        ptName = particle + "_pT"
+    except KeyError:
+        pt = inData.loc[inData.index[:], particle + "_pt"]
+        ptName = particle + "_pt"
+
     if z: 
         eta = inData.loc[inData.index[:], particle + "_eta"]  
+
     phi = inData.loc[inData.index[:], particle + "_phi"]
 
     inData[particle + '_px'] = pt*np.cos(phi)
     inData[particle + '_py'] = pt*np.sin(phi)
     if z: 
         inData[particle + '_pz'] = pt*np.sinh(eta)
+
+    if drop:
+        inData.drop(columns=[ptName, particle + "_phi"], inplace=True)
+        if z:
+            inData.drop(columns=[particle + "_eta"], inplace=True)
         
 def moveToPtEtaPhi(inData, particle):
     px = inData.loc[inData.index[:], particle + "_px"]
