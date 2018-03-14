@@ -219,13 +219,17 @@ def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     pred = datafile[fold + "/" + predName]
     pred[...] = batchPred
         
-def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', ensembleSize=None, verbose=False):
+def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', ensembleSize=None, nFolds=-1, verbose=False):
+    if nFolds < 0:
+        nFolds = len(datafile)
+
     if isinstance(ensembleSize, types.NoneType):
         ensembleSize = len(ensemble)
 
     for i, fold in enumerate(datafile):
+        if i >= nFolds: break
         if verbose:
-            print 'Predicting batch {} out of {}'.format(i+1, len(datafile))
+            print 'Predicting batch {} out of {}'.format(i+1, nFolds)
             start = timeit.default_timer()
 
         batch = np.array(datafile[fold + '/inputs'])
