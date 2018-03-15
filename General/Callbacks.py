@@ -44,7 +44,7 @@ class LRFinder(Callback):
     def calc_lr(self, lr, batch):
         return self.lrBounds[0]*(self.lr_mult**batch)
     
-    def plot(self, n_skip=10, n_max=-5):
+    def plot(self, n_skip=0, n_max=0):
         plt.figure(figsize=(16,8))
         plt.ylabel("loss")
         plt.xlabel("learning rate (log scale)")
