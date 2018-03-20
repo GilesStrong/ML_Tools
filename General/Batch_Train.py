@@ -37,8 +37,8 @@ def getFolds(n, nSplits):
     test = n
     return train, test
 
-def batchLRFindClassifier(data, nSplits, modelGen, modelGenParams, trainParams, trainOnWeights=True,
-                          lrBounds=[1e-5, 10], getBatch=getBatch, verbose=False):
+def batchLRFind(data, nSplits, modelGen, modelGenParams, trainParams, mode, trainOnWeights=True,
+                lrBounds=[1e-5, 10], getBatch=getBatch, verbose=False):
 
     start = timeit.default_timer()
     binary = None
@@ -55,15 +55,16 @@ def batchLRFindClassifier(data, nSplits, modelGen, modelGenParams, trainParams, 
         
     lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
 
-    if binary == None: #Check classification mode
-        binary = True
-        nClasses = len(np.unique(trainbatch['targets']))
-        if nClasses > 2:
-            print nClasses, "classes found, running in multiclass mode\n"
-            trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
-            binary = False
-        else:
-            print nClasses, "classes found, running in binary mode\n"
+    if 'class' in mode.lower():
+        if binary == None: #Check classification mode
+            binary = True
+            nClasses = len(np.unique(trainbatch['targets']))
+            if nClasses > 2:
+                print nClasses, "classes found, running in multiclass mode\n"
+                trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
+                binary = False
+            else:
+                print nClasses, "classes found, running in binary mode\n"
 
     if trainOnWeights:
         model.fit(trainbatch['inputs'], trainbatch['targets'],
@@ -85,7 +86,7 @@ def batchLRFindClassifier(data, nSplits, modelGen, modelGenParams, trainParams, 
 
 def batchTrainRegressor(data, nSplits,
                         modelGen, modelGenParams,
-                        trainParams, trainOnWeights=True, getBatch=getBatch,
+                        trainParams, cosAnnealMult=0, trainOnWeights=True, getBatch=getBatch,
                         extraMetrics=None, monitorData=None,
                         saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
@@ -104,7 +105,8 @@ def batchTrainRegressor(data, nSplits,
     start = timeit.default_timer()
     results = []
     histories = []
-    binary = None
+    
+    if cosAnnealMult: print "Using cosine annealing"
 
     monitor = False
     if not isinstance(monitorData, types.NoneType):
@@ -130,6 +132,11 @@ def batchTrainRegressor(data, nSplits,
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
 
+        callbacks = []
+        if cosAnnealMult:
+            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult)
+            callbacks.append(cosAnneal)
+
         for epoch in xrange(maxEpochs):
             epochStart = timeit.default_timer()
 
@@ -140,12 +147,12 @@ def batchTrainRegressor(data, nSplits,
                 if trainOnWeights:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
                               sample_weight=trainbatch['weights'],
-                              **trainParams) #Train for one epoch
+                              callbacks=callbacks, **trainParams) #Train for one epoch
 
                     loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
                 else:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
-                              **trainParams) #Train for one epoch
+                              callbacks=callbacks, **trainParams) #Train for one epoch
                     
                     loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
 
