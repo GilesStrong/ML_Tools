@@ -226,7 +226,7 @@ def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     pred = datafile[fold + "/" + predName]
     pred[...] = batchPred
         
-def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', nOut=1, ensembleSize=None, nFolds=-1, verbose=False):
+def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', nOut=1, outputPipe=None,  ensembleSize=None, nFolds=-1, verbose=False):
     if nFolds < 0:
         nFolds = len(datafile)
 
@@ -240,17 +240,15 @@ def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', nOut=1, e
             start = timeit.default_timer()
 
         batch = np.array(datafile[fold + '/inputs'])
-        batchPred = ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut)
+        batchPred = ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe)
 
         if verbose: 
             print "Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch))
 
-        if isinstance(predName, types.ListType):
-            for i, pred in enumerate(predName):
-                saveBatchPred(batchPred[:,i], fold, datafile, predName=pred)
+        if nOut > 1:
+            saveBatchPred(batchPred, fold, datafile, predName=predName)
         else:
             saveBatchPred(batchPred[:,0], fold, datafile, predName=predName)
-
         
 def getFeature(feature, datafile, nFolds=-1, ravel=True):
     data = []
