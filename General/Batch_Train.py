@@ -371,6 +371,8 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, c
                                                  model.predict(testbatch['inputs'], verbose=0))
         print "Score is:", results[-1]
 
+        cosAnneal.plot_lr()
+
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
         model.save(saveLoc +  'train_' + str(fold) + '.h5')

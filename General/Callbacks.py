@@ -110,7 +110,9 @@ class CosAnneal(Callback):
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             self.cycle_count += 1
-        return self.lr / 2 * cos_out
+        #return self.lr / 2 * cos_out#
+        return self.lr-(self.lr / 2 * cos_out)
+
 
     def on_batch_end(self, batch, logs={}):
         lr = self.calc_lr(batch)
