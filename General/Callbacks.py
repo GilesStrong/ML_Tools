@@ -79,7 +79,7 @@ class LRFinder(Callback):
 
 class CosAnneal(Callback):
     '''Adapted from fastai version'''
-    def __init__(self, nb, cycle_mult=1):
+    def __init__(self, nb, cycle_mult=1, reverse=False):
         super(CosAnneal, self).__init__()
         self.nb = nb
         self.cycle_mult = cycle_mult
@@ -87,6 +87,7 @@ class CosAnneal(Callback):
         self.cycle_count = 0
         self.lrs = []
         self.lr = -1
+        self.reverse = reverse
 
     def on_train_begin(self, logs={}):
         if self.lr == -1:
@@ -110,9 +111,10 @@ class CosAnneal(Callback):
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             self.cycle_count += 1
-        #return self.lr / 2 * cos_out#
-        return self.lr-(self.lr / 2 * cos_out)
-
+        if self.reverse:
+            return self.lr-(self.lr / 2 * cos_out)
+        else:
+            return self.lr / 2 * cos_out
 
     def on_batch_end(self, batch, logs={}):
         lr = self.calc_lr(batch)

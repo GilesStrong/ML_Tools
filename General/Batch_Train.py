@@ -262,8 +262,11 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True):
         return data.ravel()
     return data
 
-def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, cosAnnealMult=0, trainOnWeights=True, getBatch=getBatch,
-                         saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
+def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
+                         cosAnnealMult=0, reverseAnneal=False, plotLR=False,
+                         trainOnWeights=True, getBatch=getBatch,
+                         saveLoc='train_weights/', patience=10, maxEpochs=10000,
+                         verbose=False, logoutput=False):
     
     os.system("mkdir " + saveLoc)
     os.system("rm " + saveLoc + "*.h5")
@@ -304,7 +307,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, c
 
         callbacks = []
         if cosAnnealMult:
-            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult)
+            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
             callbacks.append(cosAnneal)
 
         for epoch in xrange(maxEpochs):
@@ -371,7 +374,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams, c
                                                  model.predict(testbatch['inputs'], verbose=0))
         print "Score is:", results[-1]
 
-        cosAnneal.plot_lr()
+        if plotLR: cosAnneal.plot_lr()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
