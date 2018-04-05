@@ -346,6 +346,9 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
                     model.save_weights(saveLoc + "best.h5")
                     if verbose:
                         print '{} New best found: {}'.format(subEpoch, best)
+                elif cosAnnealMult:
+                    if cosAnneal.cycle_end:
+                        epochCounter += 1
                 else:
                     epochCounter += 1
 

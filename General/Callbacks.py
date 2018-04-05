@@ -88,10 +88,12 @@ class CosAnneal(Callback):
         self.lrs = []
         self.lr = -1
         self.reverse = reverse
+        self.cycle_end = False
 
     def on_train_begin(self, logs={}):
         if self.lr == -1:
             self.lr = float(K.get_value(self.model.optimizer.lr))
+        self.cycle_end = False
         
     def plot_lr(self):
         plt.figure(figsize=(16,8))
@@ -111,6 +113,7 @@ class CosAnneal(Callback):
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             self.cycle_count += 1
+            self.cycle_end = True
         if self.reverse:
             return self.lr-(self.lr / 2 * cos_out)
         else:
