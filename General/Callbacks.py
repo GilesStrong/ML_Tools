@@ -123,3 +123,141 @@ class CosAnneal(Callback):
         lr = self.calc_lr(batch)
         self.lrs.append(lr)
         K.set_value(self.model.optimizer.lr, lr)
+
+class CosAnnealMomentum(Callback):
+    def __init__(self, nb, cycle_mult=1, reverse=False):
+        super(CosAnnealMomentum, self).__init__()
+        self.nb = nb
+        self.cycle_mult = cycle_mult
+        self.cycle_iter = 0
+        self.cycle_count = 0
+        self.moms = []
+        self.momentum = -1
+        self.reverse = reverse
+        self.cycle_end = False
+
+    def on_train_begin(self, logs={}):
+        if self.momentum == -1:
+            self.momentum = float(K.get_value(self.model.optimizer.momentum))
+        self.cycle_end = False
+        
+    def plot_momentum(self):
+        plt.figure(figsize=(16,8))
+        plt.xlabel("iterations")
+        plt.ylabel("momentum")
+        plt.plot(range(len(self.moms)), self.moms)
+        plt.show()
+        
+    def calc_momentum(self, batch):
+        cos_out = np.cos(np.pi*(self.cycle_iter)/self.nb) + 1
+        self.cycle_iter += 1
+        if self.cycle_iter==self.nb:
+            self.cycle_iter = 0
+            self.nb *= self.cycle_mult
+            self.cycle_count += 1
+            self.cycle_end = True
+        if self.reverse:
+            return self.momentum-(self.momentum / 10 * cos_out)
+        else:
+            return (self.momentum-(self.momentum / 5))+self.momentum / 10 * cos_out
+
+    def on_batch_end(self, batch, logs={}):
+        momentum = self.calc_momentum(batch)
+        self.moms.append(momentum)
+        K.set_value(self.model.optimizer.momentum, momentum)
+
+class OneCycle(Callback):
+    def __init__(self, nb, ratio=0.25, reverse=False, lrScale=10, momScale=0.1):
+        '''nb=number of minibatches per epoch, ratio=fraction of epoch spent in first stage,
+           lrScale=number used to divide initial LR to get minimum LR,
+           momScale=number to subtract from initial momentum to get minimum momentum'''
+        super(OneCycle, self).__init__()
+        self.nb = nb
+        self.ratio = ratio
+        self.nSteps = (math.ceil(self.nb*self.ratio), math.floor((1-self.ratio)*self.nb))
+        self.cycle_iter = 0
+        self.cycle_count = 0
+        self.lrs = []
+        self.moms = []
+        self.momentum = -1
+        self.lr = -1
+        self.reverse = reverse
+        self.cycle_end = False
+        self.lrScale = lrScale
+        self.momScale = momScale
+        self.momStep1 = -self.momScale/float(self.nSteps[0])
+        self.momStep2 = self.momScale/float(self.nSteps[1])
+
+    def on_train_begin(self, logs={}):
+        if self.momentum == -1:
+            self.momMax = float(K.get_value(self.model.optimizer.momentum))
+            self.momMin = self.momMax-self.momScale
+            if self.reverse: 
+                self.momentum=self.momMin
+                self.momStep1 *= -1
+                self.momStep2 *= -1
+                K.set_value(self.model.optimizer.momentum, self.momentum)
+            else:
+                self.momentum = self.momMax
+
+            self.momStep = self.momStep1
+
+        if self.lr == -1:
+            self.lrMax = float(K.get_value(self.model.optimizer.lr))
+            self.lrMin = self.lrMax/self.lrScale
+            self.lrStep1 = (self.lrMax-self.lrMin)/self.nSteps[0]
+            self.lrStep2 = -(self.lrMax-self.lrMin)/self.nSteps[1]
+            if self.reverse:
+                self.lrStep1 *= -1
+                self.lrStep2 *= -1
+                self.lr = self.lrMax
+            else:
+                self.lr = self.lrMin
+                K.set_value(self.model.optimizer.lr, self.lr)
+
+            self.lrStep = self.lrStep1
+
+        self.moms.append(self.momentum)
+        self.lrs.append(self.lr)
+        self.cycle_end = False
+        
+    def plot(self):
+        fig, axs = plt.subplots(2,1,figsize=(16,4))
+        for ax in axs:
+            ax.set_xlabel("Iterations")
+        axs[0].set_ylabel("Learning Rate")
+        axs[1].set_ylabel("Momentum")
+        axs[0].plot(range(len(self.lrs)), self.lrs)
+        axs[1].plot(range(len(self.moms)), self.moms)
+        plt.show()
+        
+    def calc(self, batch):
+        if self.cycle_iter == self.nSteps[0]+1:
+            self.lrStep = self.lrStep2
+            self.momStep = self.momStep2
+
+        if self.cycle_iter==self.nb:
+            self.cycle_iter = 0
+            self.cycle_count += 1
+            self.cycle_end = True
+            if self.reverse:
+                self.lr = self.lrMax
+                self.momentum = self.momMin
+            else:
+                self.lr = self.lrMin
+                self.momentum = self.momMax
+            self.lrStep = self.lrStep1
+            self.momStep = self.momStep1
+
+        else:
+            self.momentum += self.momStep
+            self.lr += self.lrStep
+
+        self.moms.append(self.momentum)
+        self.lrs.append(self.lr)
+
+    def on_batch_end(self, batch, logs={}):
+        self.cycle_iter += 1
+        self.calc(batch)
+        K.set_value(self.model.optimizer.momentum, self.momentum)
+        K.set_value(self.model.optimizer.lr, self.lr)

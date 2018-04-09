@@ -264,6 +264,8 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True):
 
 def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False,
+                         annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
+                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCyle=False,
                          trainOnWeights=True, getBatch=getBatch,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
@@ -309,6 +311,14 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
         if cosAnnealMult:
             cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
             callbacks.append(cosAnneal)
+        
+        if annealMomentum:
+            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
+            callbacks.append(cosAnnealMomentum)    
+
+        if oneCycle:
+            oneCycle = OneCycle(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale)
+            callbacks.append(oneCycle)         
 
         for epoch in xrange(maxEpochs):
             for n in trainID: #Loop through training folds
@@ -378,6 +388,8 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
         print "Score is:", results[-1]
 
         if plotLR: cosAnneal.plot_lr()
+        if plotMomentum: cosAnnealMomentum.plot_momentum()
+        if plotOneCyle: oneCycle.plot()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
