@@ -265,7 +265,7 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True):
 def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False,
                          annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
-                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCyle=False,
+                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCycle=False, scale=30, mode='sgd',
                          trainOnWeights=True, getBatch=getBatch,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
@@ -317,7 +317,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
             callbacks.append(cosAnnealMomentum)    
 
         if oneCycle:
-            oneCycle = OneCycle(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale)
+            oneCycle = OneCycle(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
             callbacks.append(oneCycle)         
 
         for epoch in xrange(maxEpochs):
@@ -347,7 +347,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
                     loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
-
+        
                 lossHistory.append(loss)
 
                 if loss <= best or best < 0: #Save best
@@ -389,7 +389,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
 
         if plotLR: cosAnneal.plot_lr()
         if plotMomentum: cosAnnealMomentum.plot_momentum()
-        if plotOneCyle: oneCycle.plot()
+        if plotOneCycle: oneCycle.plot()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 

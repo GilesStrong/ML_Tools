@@ -167,12 +167,12 @@ class CosAnnealMomentum(Callback):
         K.set_value(self.model.optimizer.momentum, momentum)
 
 class OneCycle(Callback):
-    def __init__(self, nb, ratio=0.25, reverse=False, lrScale=10, momScale=0.1):
+    def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lrScale=10, momScale=0.1, mode='sgd'):
         '''nb=number of minibatches per epoch, ratio=fraction of epoch spent in first stage,
            lrScale=number used to divide initial LR to get minimum LR,
            momScale=number to subtract from initial momentum to get minimum momentum'''
         super(OneCycle, self).__init__()
-        self.nb = nb
+        self.nb = nb*scale
         self.ratio = ratio
         self.nSteps = (math.ceil(self.nb*self.ratio), math.floor((1-self.ratio)*self.nb))
         self.cycle_iter = 0
@@ -187,16 +187,23 @@ class OneCycle(Callback):
         self.momScale = momScale
         self.momStep1 = -self.momScale/float(self.nSteps[0])
         self.momStep2 = self.momScale/float(self.nSteps[1])
+        self.mode = mode.lower()
 
     def on_train_begin(self, logs={}):
         if self.momentum == -1:
-            self.momMax = float(K.get_value(self.model.optimizer.momentum))
+            if self.mode == 'sgd':
+                self.momMax = float(K.get_value(self.model.optimizer.momentum))
+            elif self.mode == 'adam':
+                self.momMax = float(K.get_value(self.model.optimizer.beta_1))
             self.momMin = self.momMax-self.momScale
             if self.reverse: 
-                self.momentum=self.momMin
+                self.momentum = self.momMin
                 self.momStep1 *= -1
                 self.momStep2 *= -1
-                K.set_value(self.model.optimizer.momentum, self.momentum)
+                if self.mode == 'sgd':
+                    K.set_value(self.model.optimizer.momentum, self.momentum)
+                elif self.mode == 'adam':
+                    K.set_value(self.model.optimizer.beta_1, self.momentum)
             else:
                 self.momentum = self.momMax
 
@@ -236,8 +243,9 @@ class OneCycle(Callback):
             self.lrStep = self.lrStep2
             self.momStep = self.momStep2
 
-        if self.cycle_iter==self.nb:
-            self.cycle_iter = 0
+        if self.cycle_iter>=self.nb:
+            self.lr += self.lrStep/10
+            '''self.cycle_iter = 0
             self.cycle_count += 1
             self.cycle_end = True
             if self.reverse:
@@ -247,7 +255,8 @@ class OneCycle(Callback):
                 self.lr = self.lrMin
                 self.momentum = self.momMax
             self.lrStep = self.lrStep1
-            self.momStep = self.momStep1
+            self.momStep = self.momStep1'''
+
 
         else:
             self.momentum += self.momStep
@@ -259,5 +268,8 @@ class OneCycle(Callback):
     def on_batch_end(self, batch, logs={}):
         self.cycle_iter += 1
         self.calc(batch)
-        K.set_value(self.model.optimizer.momentum, self.momentum)
+        if self.mode == 'sgd':
+            K.set_value(self.model.optimizer.momentum, self.momentum)
+        elif self.mode == 'adam':
+            K.set_value(self.model.optimizer.beta_1, self.momentum)
         K.set_value(self.model.optimizer.lr, self.lr)

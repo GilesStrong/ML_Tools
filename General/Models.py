@@ -72,7 +72,8 @@ def getModel(version, nIn, compileArgs, mode, nOut=1):
     if 'lr' not in compileArgs: compileArgs['lr'] = 0.001
     if compileArgs['optimizer'] == 'adam':
         if 'amsgrad' not in compileArgs: compileArgs['amsgrad'] = False
-        optimiser = Adam(lr=compileArgs['lr'], beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compileArgs['amsgrad'])
+        if 'beta_1' not in compileArgs: compileArgs['beta_1'] = 0.9
+        optimiser = Adam(lr=compileArgs['lr'], beta_1=compileArgs['beta_1'], beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compileArgs['amsgrad'])
 
     if compileArgs['optimizer'] == 'sgd':
         if 'momentum' not in compileArgs: compileArgs['momentum'] = 0.9
