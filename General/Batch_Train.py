@@ -22,7 +22,109 @@ from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
 from ML_Tools.General.Ensemble_Functions import *
 from ML_Tools.General.Callbacks import *
 
+'''
+Todo:
+- Change callbacks for nicer interface e.g. pass arguments in dictionary
+- Include getFeature in BatchYielder
+- Move BatchYielder to separate file
+- Make LR finder run over all batches and show combined results
+- Update regressor to use more callbacks and BatchYielder
+- Combine classifier and regressor methods
+- Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
+- Tidy code and move to PEP 8
+- Add docstrings and stuff
+'''
+
+class BatchYielder():
+    def __init__(self, datafile=None):
+        self.augmented = False
+        self.augMult = 0
+        self.trainTimeAug = False
+        self.testTimeAug = False
+        if not isinstance(datafile, types.NoneType):
+            self.addSource(datafile)
+
+    def addSource(self, datafile):
+        self.source = datafile
+        self.nFolds = len(self.source)
+
+    def getBatch(self, index, datafile=None):
+        if isinstance(datafile, types.NoneType):
+            datafile = self.source
+
+        index = str(index)
+        weights = None
+        targets = None
+        if 'fold_' + index + '/weights' in datafile:
+            weights = np.array(datafile['fold_' + index + '/weights'])
+        if 'fold_' + index + '/targets' in datafile:
+            targets = np.array(datafile['fold_' + index + '/targets'])
+        return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
+                'targets':targets,
+                'weights':weights}
+
+class ReflectBatch(BatchYielder):
+    def __init__(self, header, datafile=None, trainTimeAug=True, testTimeAug=True):
+        self.header = header
+        self.augmented = True
+        self.augMult = 8
+        self.trainTimeAug = trainTimeAug
+        self.testTimeAug = testTimeAug
+        if not isinstance(datafile, types.NoneType):
+            self.addSource(datafile)
+        
+    def getBatch(self, index, datafile=None):
+        if isinstance(datafile, types.NoneType):
+            datafile = self.source
+            
+        index = str(index)
+        weights = None
+        targets = None
+        if 'fold_' + index + '/weights' in datafile:
+            weights = np.array(datafile['fold_' + index + '/weights'])
+        if 'fold_' + index + '/targets' in datafile:
+            targets = np.array(datafile['fold_' + index + '/targets'])
+
+        inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
+        for coord in ['_px','_py','_pz']:
+            inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
+            for feat in [x for x in inputs.columns if coord in x and x != 'aug' + coord]:
+                inputs.loc[inputs['aug' + coord] == 1, feat] = -inputs.loc[inputs['aug' + coord] == 1, feat]
+
+        return {'inputs':inputs[self.header].values,
+                'targets':targets,
+                'weights':weights}
+    
+    def getTestBatch(self, index, augIndex, datafile=None):
+        if augIndex >= self.augMult:
+            print "Invalid augmentation index passed", augIndex
+            return -1
+        
+        if isinstance(datafile, types.NoneType):
+            datafile = self.source
+            
+        index = str(index)
+        weights = None
+        targets = None
+        if 'fold_' + index + '/weights' in datafile:
+            weights = np.array(datafile['fold_' + index + '/weights'])
+        if 'fold_' + index + '/targets' in datafile:
+            targets = np.array(datafile['fold_' + index + '/targets'])
+
+        augMode = '{0:03b}'.format(augIndex) #Get binary rep
+        inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
+        coords = ['_px','_py','_pz']
+        for coordIndex, active in enumerate(augMode):
+            if active == '1':
+                for feat in [x for x in inputs.columns if coords[coordIndex] in x]:
+                    inputs.loc[:, feat] = -inputs.loc[:, feat]
+
+        return {'inputs':inputs[self.header].values,
+                'targets':targets,
+                'weights':weights}
+
 def getBatch(index, datafile):
+    print "Depreciated, use to moving a BatchYielder class"
     index = str(index)
     weights = None
     if 'fold_' + index + '/weights' in datafile:
@@ -37,8 +139,10 @@ def getFolds(n, nSplits):
     test = n
     return train, test
 
-def batchLRFind(data, nSplits, modelGen, modelGenParams, trainParams, mode, trainOnWeights=True,
-                lrBounds=[1e-5, 10], getBatch=getBatch, verbose=False):
+def batchLRFind(batchYielder,
+                modelGen, modelGenParams,
+                trainParams, trainOnWeights=True,
+                lrBounds=[1e-5, 10], verbose=False):
 
     start = timeit.default_timer()
     binary = None
@@ -49,13 +153,17 @@ def batchLRFind(data, nSplits, modelGen, modelGenParams, trainParams, mode, trai
     model = modelGen(**modelGenParams)
     model.reset_states #Just checking
     
-    trainbatch = getBatch(np.random.choice(range(nSplits)), data) #Load fold
+    if not isinstance(batchYielder, BatchYielder):
+        print "HDF5 as input is depreciated, converting to BatchYielder"
+        batchYielder = BatchYielder(batchYielder)
+
+    trainbatch = batchYielder.getBatch(np.random.choice(range(batchYielder.nFolds))) #Load fold
     nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
     if verbose: print "Using {} steps".format(nSteps)   
         
     lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
 
-    if 'class' in mode.lower():
+    if 'class' in modelGenParams['mode'].lower():
         if binary == None: #Check classification mode
             binary = True
             nClasses = len(np.unique(trainbatch['targets']))
@@ -229,29 +337,40 @@ def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     pred = datafile[fold + "/" + predName]
     pred[...] = batchPred
         
-def batchEnsemblePredict(ensemble, weights, datafile, predName='pred', nOut=1, outputPipe=None,  ensembleSize=None, nFolds=-1, verbose=False):
-    if nFolds < 0:
-        nFolds = len(datafile)
-
+def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=1, outputPipe=None, ensembleSize=None, nFolds=-1, verbose=False):
     if isinstance(ensembleSize, types.NoneType):
         ensembleSize = len(ensemble)
 
-    for i, fold in enumerate(datafile):
-        if i >= nFolds: break
+    if not isinstance(batchYielder, BatchYielder):
+        print "Passing HDF5 as input is depreciated, converting to BatchYielder"
+        data = BatchYielder(batchYielder)
+
+    if nFolds < 0:
+        nFolds = len(data.source)
+
+    for fold in range(nFolds):
         if verbose:
-            print 'Predicting batch {} out of {}'.format(i+1, nFolds)
+            print 'Predicting batch {} out of {}'.format(fold+1, nFolds)
             start = timeit.default_timer()
 
-        batch = np.array(datafile[fold + '/inputs'])
-        batchPred = ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe)
+        if not data.testTimeAug:
+            batch = data.getBatch(fold)['inputs']
+            batchPred = ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe)
+
+        else:
+            tmpPred = []
+            for aug in range(data.augMult): #Multithread this?
+                batch = data.getTestBatch(fold, aug)['inputs']
+                tmpPred.append(ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe))
+            batchPred = np.mean(tmpPred, axis=0)
 
         if verbose: 
             print "Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch))
 
         if nOut > 1:
-            saveBatchPred(batchPred, fold, datafile, predName=predName)
+            saveBatchPred(batchPred, 'fold_' + str(fold), data.source, predName=predName)
         else:
-            saveBatchPred(batchPred[:,0], fold, datafile, predName=predName)
+            saveBatchPred(batchPred[:,0], 'fold_' + str(fold), data.source, predName=predName)
         
 def getFeature(feature, datafile, nFolds=-1, ravel=True):
     data = []
@@ -265,11 +384,11 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True):
         return data.ravel()
     return data
 
-def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
+def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainParams,
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False,
                          annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
                          oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCycle=False, scale=30, mode='sgd',
-                         trainOnWeights=True, getBatch=getBatch,
+                         trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
     
@@ -290,6 +409,9 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
     histories = []
     binary = None
 
+    if not isinstance(batchYielder, BatchYielder):
+        print "HDF5 as input is depreciated, converting to BatchYielder"
+        batchYielder = BatchYielder(batchYielder)
 
     if cosAnnealMult: print "Using cosine annealing"
     if trainOnWeights: print "Training using weights"
@@ -304,7 +426,6 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
         stop = False
         lossHistory = []
         trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
-        testbatch = getBatch(testID, data) #Load testing fold
 
         model = None
         model = modelGen(**modelGenParams)
@@ -312,20 +433,20 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
 
         callbacks = []
         if cosAnnealMult:
-            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
+            cosAnneal = CosAnneal(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
             callbacks.append(cosAnneal)
         
         if annealMomentum:
-            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
+            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
             callbacks.append(cosAnnealMomentum)    
 
         if oneCycle:
-            oneCycle = OneCycle(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
-            callbacks.append(oneCycle)         
+            oneCycle = OneCycle(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
+            callbacks.append(oneCycle)        
 
         for epoch in xrange(maxEpochs):
             for n in trainID: #Loop through training folds
-                trainbatch = getBatch(n, data) #Load fold data
+                trainbatch = batchYielder.getBatch(n) #Load fold data
                 subEpoch += 1
                 
                 if binary == None: #First run, check classification mode
@@ -343,12 +464,14 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
                               class_weight = 'auto', sample_weight=trainbatch['weights'],
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
+                    testbatch = batchYielder.getBatch(testID) #Load testing fold
                     loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
                 else:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
                               class_weight = 'auto',
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
+                    testbatch = batchYielder.getBatch(testID) #Load testing fold
                     loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
         
                 lossHistory.append(loss)
@@ -382,6 +505,7 @@ def batchTrainClassifier(data, nSplits, modelGen, modelGenParams, trainParams,
         results.append({})
         results[-1]['loss'] = best
         if binary:
+            testbatch = batchYielder.getBatch(testID) #Load testing fold
             if not isinstance(testbatch['weights'], types.NoneType):
                 results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
                                                      model.predict(testbatch['inputs'], verbose=0),
