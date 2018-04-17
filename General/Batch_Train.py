@@ -557,12 +557,15 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                 else:
                     epochCounter += 1
                     if reduxDecayActive:
-                        K.set_value(model.optimizer.lr, 0.5*float(K.get_value(model.optimizer.lr)))
+                        lr = 0.5*float(K.get_value(model.optimizer.lr))
+                        cosAnneal.lrs.append(lr)
+                        K.set_value(model.optimizer.lr, lr)
 
                 if epochCounter >= patience: #Early stopping
                     if cosAnnealMult and reduxDecay and not reduxDecayActive:
                         print 'CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(subEpoch, bestLR)
                         model.load_weights(saveLoc +  "best.h5")
+                        cosAnneal.lrs.append(bestLR)
                         K.set_value(model.optimizer.lr, bestLR)
                         cosAnnealMult = 0
                         patience = 10
