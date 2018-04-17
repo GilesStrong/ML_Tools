@@ -550,7 +550,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                     epochCounter = 0
                     model.save_weights(saveLoc + "best.h5")
                     if reduxDecayActive:
-                        cosAnneal.lrs.append(lr)
+                        cosAnneal.lrs.append(float(K.get_value(model.optimizer.lr)))
                     if verbose:
                         print '{} New best found: {}'.format(subEpoch, best)
                 elif cosAnnealMult and not reduxDecayActive:
