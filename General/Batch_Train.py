@@ -553,13 +553,13 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         cosAnneal.lrs.append(lr)
                     if verbose:
                         print '{} New best found: {}'.format(subEpoch, best)
-                elif cosAnnealMult:
+                elif cosAnnealMult and not reduxDecayActive:
                     if cosAnneal.cycle_end:
                         epochCounter += 1
                 else:
                     epochCounter += 1
                     if reduxDecayActive:
-                        lr = 0.9*float(K.get_value(model.optimizer.lr))
+                        lr = 0.8*float(K.get_value(model.optimizer.lr))
                         cosAnneal.lrs.append(lr)
                         K.set_value(model.optimizer.lr, lr)
 
@@ -569,7 +569,6 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         model.load_weights(saveLoc +  "best.h5")
                         cosAnneal.lrs.append(bestLR)
                         K.set_value(model.optimizer.lr, bestLR)
-                        cosAnnealMult = 0
                         patience = 10
                         epochCounter = 0
                         callbacks = []
