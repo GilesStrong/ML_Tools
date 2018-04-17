@@ -549,6 +549,8 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                             bestLR = cosAnneal.lrs[-2]
                     epochCounter = 0
                     model.save_weights(saveLoc + "best.h5")
+                    if reduxDecayActive:
+                        cosAnneal.lrs.append(lr)
                     if verbose:
                         print '{} New best found: {}'.format(subEpoch, best)
                 elif cosAnnealMult:
@@ -557,7 +559,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                 else:
                     epochCounter += 1
                     if reduxDecayActive:
-                        lr = 0.5*float(K.get_value(model.optimizer.lr))
+                        lr = 0.9*float(K.get_value(model.optimizer.lr))
                         cosAnneal.lrs.append(lr)
                         K.set_value(model.optimizer.lr, lr)
 
