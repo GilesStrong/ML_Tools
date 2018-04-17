@@ -546,7 +546,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         if cosAnneal.lr > 0:
                             bestLR = cosAnneal.lr
                         else:
-                            bestLR = cosAnneal.lrs[-10]
+                            bestLR = cosAnneal.lrs[-1]
                     epochCounter = 0
                     model.save_weights(saveLoc + "best.h5")
                     if verbose:
@@ -557,7 +557,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                 else:
                     epochCounter += 1
                     if reduxDecayActive:
-                        K.set_value(model.optimizer.lr, 0.5*float(K.get_value(self.model.optimizer.lr)))
+                        K.set_value(model.optimizer.lr, 0.5*model.optimizer.lr)
 
                 if epochCounter >= patience: #Early stopping
                     if cosAnnealMult and reduxDecay and not reduxDecayActive:
@@ -569,10 +569,11 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         epochCounter = 0
                         callbacks = []
                         reduxDecayActive = True
-                    if verbose:
-                        print 'Early stopping after {} epochs'.format(subEpoch)
-                    stop = True
-                    break
+                    else:
+                        if verbose:
+                            print 'Early stopping after {} epochs'.format(subEpoch)
+                        stop = True
+                        break
             
             if stop:
                 break
