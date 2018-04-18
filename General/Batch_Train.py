@@ -185,6 +185,86 @@ class RotationBatch(BatchYielder):
                 'targets':targets,
                 'weights':weights}
 
+class RotationReflectionBatch(BatchYielder):
+    def __init__(self, header, datafile=None, augRotMult=4, trainTimeAug=True, testTimeAug=True):
+        self.header = header
+        self.augmented = True
+        self.augRotMult = augRotMult
+        self.augMult = self.augRotMult*4
+        self.trainTimeAug = trainTimeAug
+        self.testTimeAug = testTimeAug
+        if not isinstance(datafile, types.NoneType):
+            self.addSource(datafile)
+    
+    @staticmethod
+    def rotate(inData, vectors):
+        for vector in vectors:
+            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
+            inData.loc[:, vector + '_py'] = inData.loc[:, vector + '_py']*np.cos(inData.loc[:, 'aug_angle'])+inData.loc[:, vector + '_px']*np.sin(inData.loc[:, 'aug_angle'])
+    
+    @staticmethod
+    def reflect(inData, vectors):
+        for vector in vectors:
+            for coord in ['_px', '_pz']:
+                try:
+                    inData.loc[inData['aug' + coord] == 1, vector + coord] = -inData.loc[inData['aug' + coord] == 1, vector + coord]
+                except KeyError:
+                    pass
+            
+    def getBatch(self, index, datafile=None):
+        if isinstance(datafile, types.NoneType):
+            datafile = self.source
+            
+        index = str(index)
+        weights = None
+        targets = None
+        if 'fold_' + index + '/weights' in datafile:
+            weights = np.array(datafile['fold_' + index + '/weights'])
+        if 'fold_' + index + '/targets' in datafile:
+            targets = np.array(datafile['fold_' + index + '/targets'])
+
+        inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
+        vectors = [x[:-3] for x in inputs.columns if '_px' in x]
+        inputs['aug_angle'] = 2*np.pi*np.random.random(size=len(inputs))
+        for coord in ['_px', '_pz']:
+            inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
+        self.rotate(inputs, vectors)
+        self.reflect(inputs, vectors)
+        
+        return {'inputs':inputs[self.header].values,
+                'targets':targets,
+                'weights':weights}
+    
+    def getTestBatch(self, index, augIndex, datafile=None):
+        if augIndex >= self.augMult:
+            print "Invalid augmentation index passed", augIndex
+            return -1
+        
+        if isinstance(datafile, types.NoneType):
+            datafile = self.source
+            
+        index = str(index)
+        weights = None
+        targets = None
+        if 'fold_' + index + '/weights' in datafile:
+            weights = np.array(datafile['fold_' + index + '/weights'])
+        if 'fold_' + index + '/targets' in datafile:
+            targets = np.array(datafile['fold_' + index + '/targets'])
+            
+        inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
+        rotIndex = augIndex%self.augRotMult
+        refIndex = '{0:02b}'.format(int(augIndex/4))
+        vectors = [x[:-3] for x in inputs.columns if '_px' in x]
+        inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.augRotMult)+1)[rotIndex]
+        for i, coord in enumerate(['_px', '_pz']):
+            inputs['aug' + coord] = int(refIndex[i])
+        self.rotate(inputs, vectors)
+        self.reflect(inputs, vectors)
+
+        return {'inputs':inputs[self.header].values,
+                'targets':targets,
+                'weights':weights}
+
 def getBatch(index, datafile):
     print "Depreciated, use to moving a BatchYielder class"
     index = str(index)
