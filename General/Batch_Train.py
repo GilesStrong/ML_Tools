@@ -24,7 +24,6 @@ from ML_Tools.General.Callbacks import *
 
 '''
 Todo:
-- Make batchtrain output mean loss
 - Change callbacks for nicer interface e.g. pass arguments in dictionary
 - Include getFeature in BatchYielder
 - Move BatchYielder to separate file
@@ -34,6 +33,7 @@ Todo:
 - Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
+- Add method to BatchYielder to import other data into correct format, e.g. csv
 '''
 
 class BatchYielder():
@@ -462,7 +462,7 @@ def batchTrainRegressor(data, nSplits,
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
-    print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
+        print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
     print("______________________________________\n")
                       
     if logoutput:
@@ -696,7 +696,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
-    print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
+        print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
     print("______________________________________\n")
                       
     if logoutput:
