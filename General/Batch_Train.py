@@ -21,6 +21,7 @@ from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
 from ML_Tools.General.Ensemble_Functions import *
 from ML_Tools.General.Callbacks import *
+from ML_Tools.General.BatchYielder import BatchYielder
 
 '''
 Todo:
@@ -36,283 +37,6 @@ Todo:
 - Add method to BatchYielder to import other data into correct format, e.g. csv
 '''
 
-class BatchYielder():
-    def __init__(self, datafile=None):
-        self.augmented = False
-        self.augMult = 0
-        self.trainTimeAug = False
-        self.testTimeAug = False
-        if not isinstance(datafile, types.NoneType):
-            self.addSource(datafile)
-
-    def addSource(self, datafile):
-        self.source = datafile
-        self.nFolds = len(self.source)
-
-    def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-        return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
-                'targets':targets,
-                'weights':weights}
-
-class ReflectBatch(BatchYielder):
-    def __init__(self, header, datafile=None, inputPipe=None, trainTimeAug=True, testTimeAug=True):
-        self.header = header
-        self.augmented = True
-        self.augMult = 8
-        self.trainTimeAug = trainTimeAug
-        self.testTimeAug = testTimeAug
-        self.inputPipe = inputPipe
-        if not isinstance(datafile, types.NoneType):
-            self.addSource(datafile)
-        
-    def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        for coord in ['_px','_py','_pz']:
-            inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
-            for feat in [x for x in inputs.columns if coord in x and x != 'aug' + coord]:
-                inputs.loc[inputs['aug' + coord] == 1, feat] = -inputs.loc[inputs['aug' + coord] == 1, feat]
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-    
-    def getTestBatch(self, index, augIndex, datafile=None):
-        if augIndex >= self.augMult:
-            print "Invalid augmentation index passed", augIndex
-            return -1
-        
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-
-        augMode = '{0:03b}'.format(augIndex) #Get binary rep
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        coords = ['_px','_py','_pz']
-        for coordIndex, active in enumerate(augMode):
-            if active == '1':
-                for feat in [x for x in inputs.columns if coords[coordIndex] in x]:
-                    inputs.loc[:, feat] = -inputs.loc[:, feat]
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-
-class RotationBatch(BatchYielder):
-    def __init__(self, header, datafile=None, augMult=8, inputPipe=None, trainTimeAug=True, testTimeAug=True):
-        self.header = header
-        self.augmented = True
-        self.augMult = augMult
-        self.trainTimeAug = trainTimeAug
-        self.testTimeAug = testTimeAug
-        self.inputPipe = inputPipe
-        if not isinstance(datafile, types.NoneType):
-            self.addSource(datafile)
-    
-    @staticmethod
-    def rotate(inData):
-        vectors = [x[:-3] for x in inData.columns if '_px' in x]
-        for vector in vectors:
-            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
-            inData.loc[:, vector + '_py'] = inData.loc[:, vector + '_py']*np.cos(inData.loc[:, 'aug_angle'])+inData.loc[:, vector + '_px']*np.sin(inData.loc[:, 'aug_angle'])
-                
-    def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        inputs['aug_angle'] = 2*np.pi*np.random.random(size=len(inputs))
-        self.rotate(inputs)
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-        
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-    
-    def getTestBatch(self, index, augIndex, datafile=None):
-        if augIndex >= self.augMult:
-            print "Invalid augmentation index passed", augIndex
-            return -1
-        
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-        
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        if augIndex > 0:
-            inputs['aug_angle'] = np.linspace(0, 2*np.pi, self.augMult+1)[augIndex]
-        else:
-            inputs['aug_angle'] = 0.0
-        self.rotate(inputs)
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-            
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-
-class RotationReflectionBatch(BatchYielder):
-    def __init__(self, header, datafile=None, inputPipe=None, augRotMult=4, trainTimeAug=True, testTimeAug=True):
-        self.header = header
-        self.augmented = True
-        self.augRotMult = augRotMult
-        self.augMult = self.augRotMult*4
-        self.trainTimeAug = trainTimeAug
-        self.testTimeAug = testTimeAug
-        self.inputPipe = inputPipe
-        if not isinstance(datafile, types.NoneType):
-            self.addSource(datafile)
-    
-    @staticmethod
-    def rotate(inData, vectors):
-        for vector in vectors:
-            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
-            inData.loc[:, vector + '_py'] = inData.loc[:, vector + '_py']*np.cos(inData.loc[:, 'aug_angle'])+inData.loc[:, vector + '_px']*np.sin(inData.loc[:, 'aug_angle'])
-    
-    @staticmethod
-    def reflect(inData, vectors):
-        for vector in vectors:
-            for coord in ['_px', '_pz']:
-                try:
-                    inData.loc[inData['aug' + coord] == 1, vector + coord] = -inData.loc[inData['aug' + coord] == 1, vector + coord]
-                except KeyError:
-                    pass
-            
-    def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-        inputs['aug_angle'] = 2*np.pi*np.random.random(size=len(inputs))
-        for coord in ['_px', '_pz']:
-            inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
-        self.rotate(inputs, vectors)
-        self.reflect(inputs, vectors)
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-        
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-    
-    def getTestBatch(self, index, augIndex, datafile=None):
-        if augIndex >= self.augMult:
-            print "Invalid augmentation index passed", augIndex
-            return -1
-        
-        if isinstance(datafile, types.NoneType):
-            datafile = self.source
-            
-        index = str(index)
-        weights = None
-        targets = None
-        if 'fold_' + index + '/weights' in datafile:
-            weights = np.array(datafile['fold_' + index + '/weights'])
-        if 'fold_' + index + '/targets' in datafile:
-            targets = np.array(datafile['fold_' + index + '/targets'])
-            
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
-        rotIndex = augIndex%self.augRotMult
-        refIndex = '{0:02b}'.format(int(augIndex/4))
-        vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-        inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.augRotMult)+1)[rotIndex]
-        for i, coord in enumerate(['_px', '_pz']):
-            inputs['aug' + coord] = int(refIndex[i])
-        self.rotate(inputs, vectors)
-        self.reflect(inputs, vectors)
-        if isinstance(self.inputPipe, types.NoneType):
-            inputs = inputs[self.header].values
-        else:
-            inputs = inputPipe.transform(inputs[self.header].values)
-
-        return {'inputs':inputs,
-                'targets':targets,
-                'weights':weights}
-
 def getBatch(index, datafile):
     print "Depreciated, use to moving a BatchYielder class"
     index = str(index)
@@ -324,7 +48,7 @@ def getBatch(index, datafile):
             'weights':weights}
 
 def getFolds(n, nSplits):
-    train = [x for x in xrange(nSplits) if x != n]
+    train = [x for x in range(nSplits) if x != n]
     shuffle(train)
     test = n
     return train, test
@@ -562,14 +286,17 @@ def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=
         else:
             saveBatchPred(batchPred[:,0], 'fold_' + str(fold), batchYielder.source, predName=predName)
         
-def getFeature(feature, datafile, nFolds=-1, ravel=True):
-    data = []
-    for i, fold in enumerate(datafile):
-        if i >= nFolds and nFolds > 0:
-            break
-        data.append(np.array(datafile[fold + '/' + feature]))
-        
-    data = np.concatenate(data)
+def getFeature(feature, datafile, nFolds=-1, ravel=True, setFold=-1):
+    if setFold < 0:
+        data = []
+        for i, fold in enumerate(datafile):
+            if i >= nFolds and nFolds > 0:
+                break
+            data.append(np.array(datafile[fold + '/' + feature]))
+            
+        data = np.concatenate(data)
+    else:
+         data = np.array(datafile['fold_' + str(setFold) + '/' + feature])
     if ravel:
         return data.ravel()
     return data
