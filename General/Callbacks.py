@@ -278,13 +278,14 @@ class OneCycle(Callback):
 
 class SWA(Callback):
     '''Based on fastai version'''
-    def __init__(self, swa_start):
+    def __init__(self, swa_start, clrCallback=None):
         super(SWA, self).__init__()
         self.swa_model = None
         self.swa_start = swa_start
         self.epoch = -1
         self.swa_n = -1
         self.active = False
+        self.clrCallback = clrCallback
         
     def on_train_begin(self, logs={}):
         if isinstance(self.swa_model, types.NoneType):
@@ -293,14 +294,16 @@ class SWA(Callback):
             self.swa_n = 0
 
     def on_epoch_end(self, metrics, logs={}):
-        if (self.epoch + 1) >= self.swa_start:
+        if (self.epoch + 1) >= self.swa_start and (isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end):
             if self.swa_n == 0:
                 print "SWA beginning"
                 self.active = True
             self.update_average_model()
             self.swa_n += 1
-            
-        self.epoch += 1
+        
+        if isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end:
+            self.epoch += 1
+
             
     def update_average_model(self):
         # update running average of parameters

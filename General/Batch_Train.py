@@ -366,7 +366,10 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
             callbacks.append(oneCycle)  
         
         if swaStart >= 0:
-            swa = SWA(swaStart)
+            if cosAnnealMult:
+                swa = SWA(swaStart, cosAnneal)
+            else:
+                swa = SWA(swaStart)
             swaModel = modelGen(**modelGenParams)
             callbacks.append(swa)
 
