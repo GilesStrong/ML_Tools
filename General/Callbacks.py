@@ -288,7 +288,8 @@ class SWA(Callback):
         self.clrCallback = clrCallback
         
     def on_train_begin(self, logs={}):
-        if self.epoch == -1:
+        if isinstance(self.swa_model, types.NoneType):
+            self.swa_model = self.model.get_weights()
             self.epoch = 0
             self.swa_n = 0
 
@@ -297,7 +298,6 @@ class SWA(Callback):
             if self.swa_n == 0:
                 print "SWA beginning"
                 self.active = True
-                self.swa_model = self.model.get_weights()
             self.update_average_model()
             self.swa_n += 1
         
