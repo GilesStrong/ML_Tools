@@ -5,6 +5,7 @@ from keras import backend as K
 
 import math
 import numpy as np
+import types
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -274,3 +275,38 @@ class OneCycle(Callback):
         elif self.mode == 'adam':
             K.set_value(self.model.optimizer.beta_1, self.momentum)
         K.set_value(self.model.optimizer.lr, self.lr)
+
+class SWA(Callback):
+    '''Based on fastai version'''
+    def __init__(self, swa_start):
+        super(SWA, self).__init__()
+        self.swa_model = None
+        self.swa_start = swa_start
+        self.epoch = -1
+        self.swa_n = -1
+        self.active = False
+        
+    def on_train_begin(self, logs={}):
+        if isinstance(self.swa_model, types.NoneType):
+            self.swa_model = self.model.get_weights()
+            self.epoch = 0
+            self.swa_n = 0
+
+    def on_epoch_end(self, metrics, logs={}):
+        if (self.epoch + 1) >= self.swa_start:
+            if self.swa_n == 0:
+                print "SWA beginning"
+                self.active = True
+            self.update_average_model()
+            self.swa_n += 1
+            
+        self.epoch += 1
+            
+    def update_average_model(self):
+        # update running average of parameters
+        model_params = self.model.get_weights()
+        swa_params = self.swa_model
+        for model_param, swa_param in zip(model_params, swa_params):
+            swa_param *= self.swa_n
+            swa_param += model_param
+            swa_param /= (self.swa_n + 1)

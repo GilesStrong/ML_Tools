@@ -305,6 +305,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
                          annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
                          oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCycle=False, scale=30, mode='sgd',
+                         swaStart=-1,
                          trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
@@ -362,7 +363,12 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
 
         if oneCycle:
             oneCycle = OneCycle(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
-            callbacks.append(oneCycle)        
+            callbacks.append(oneCycle)  
+        
+        if swaStart >= 0:
+            swa = SWA(swaStart)
+            swaModel = modelGen(**modelGenParams)
+            callbacks.append(swa)
 
         for epoch in xrange(maxEpochs):
             for n in trainID: #Loop through training folds
@@ -385,14 +391,23 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
                     testbatch = batchYielder.getBatch(testID) #Load testing fold
-                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                    if swaStart >= 0 and swa.active:
+                        swaModel.set_weights(swa.swa_model)
+                        loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                    else:
+                        loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                        
                 else:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
                               class_weight = 'auto',
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
                     testbatch = batchYielder.getBatch(testID) #Load testing fold
-                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+                    if swaStart >= 0 and swa.active:
+                        swaModel.set_weights(swa.swa_model)
+                        loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+                    else:
+                        loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
         
                 lossHistory.append(loss)
 
@@ -404,7 +419,10 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         else:
                             bestLR = cosAnneal.lrs[-2]
                     epochCounter = 0
-                    model.save_weights(saveLoc + "best.h5")
+                    if swaStart >= 0 and swa.active:
+                        swaModel.save_weights(saveLoc + "best.h5")
+                    else:
+                        model.save_weights(saveLoc + "best.h5")
                     if reduxDecayActive:
                         cosAnneal.lrs.append(float(K.get_value(model.optimizer.lr)))
                     if verbose:
