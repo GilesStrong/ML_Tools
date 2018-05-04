@@ -399,7 +399,8 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
-                        
+                    swaModel.set_weights(swa.swa_model)
+                    
                 else:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
                               class_weight = 'auto',

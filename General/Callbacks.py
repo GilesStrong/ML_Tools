@@ -298,12 +298,17 @@ class SWA(Callback):
             if self.swa_n == 0:
                 print "SWA beginning"
                 self.active = True
+            elif not isinstance(self.clrCallback, types.NoneType) and self.clrCallback.cycle_mult > 1:
+                print "Updating average"
+                self.active = True
             self.update_average_model()
             self.swa_n += 1
         
         if isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end:
             self.epoch += 1
 
+        if self.active and not (isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end or self.clrCallback.cycle_mult == 1):
+            self.active = False
             
     def update_average_model(self):
         # update running average of parameters
