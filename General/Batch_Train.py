@@ -27,7 +27,6 @@ from ML_Tools.General.BatchYielder import BatchYielder
 Todo:
 - Change callbacks for nicer interface e.g. pass arguments in dictionary
 - Include getFeature in BatchYielder
-- Move BatchYielder to separate file
 - Make LR finder run over all batches and show combined results
 - Update regressor to use more callbacks and BatchYielder
 - Combine classifier and regressor methods
@@ -411,7 +410,10 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
-        
+                
+                if swaStart >= 0 and swa.active and cosAnnealMult > 1:
+                    print "SWA loss:", loss
+
                 lossHistory.append(loss)
 
                 if loss <= best or best < 0: #Save best

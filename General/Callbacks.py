@@ -11,6 +11,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 sns.set_style("white")
 
+'''
+Todo:
+- Make SWA track multiple averages to get best start time
+'''
+
 class LossHistory(Callback):
     def __init__(self, trData):
         self.trainingData = trData

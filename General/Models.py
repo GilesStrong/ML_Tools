@@ -39,11 +39,11 @@ def getModel(version, nIn, compileArgs, mode, nOut=1):
             if do: Dropout(do)
 
     elif "modelSelu" in version:
-        model.add(Dense(width, input_dim=nIn, kernel_initializer='VarianceScaling'))
+        model.add(Dense(width, input_dim=nIn, kernel_initializer='lecun_normal'))
         model.add(Activation('selu'))
         if do: model.add(AlphaDropout(do))
         for i in range(depth):
-            model.add(Dense(width, kernel_initializer='VarianceScaling'))
+            model.add(Dense(width, kernel_initializer='lecun_normal'))
             model.add(Activation('selu'))
             if do: model.add(AlphaDropout(do))
 
