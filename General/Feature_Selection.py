@@ -37,15 +37,15 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
     kf = StratifiedKFold(n_splits=10, shuffle=True)
     folds = kf.split(X, y)
     for i, (train, test) in enumerate(folds):
-        print "Running fold", i+1, "/10"
+        print ("Running fold", i+1, "/10")
         
         xgbClass = XGBClassifier(n_jobs=4)
         if weights != None:
             xgbClass.fit(X[train], y[train], sample_weight=w[train])
-            print 'ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1]), sample_weight=w[test])
+            print ('ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1]), sample_weight=w[test]))
         else:
             xgbClass.fit(X[train], y[train])
-            print 'ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1]))
+            print ('ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1])))
         
         
         indices = xgbClass.feature_importances_.argsort()
@@ -59,18 +59,18 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
     scores = np.array([featureImportance[i]/10 for i in names])
     importance = np.array(sorted(zip(names, scores), key=lambda x: x[1], reverse=True))
 
-    print len(list(set(importantFeatures))), "important features identified"
-    print 'Feature\tImportance'
-    print '---------------------'
+    print (len(list(set(importantFeatures))), "important features identified")
+    print ('Feature\tImportance')
+    print ('---------------------')
     for i in importance:
-        print i[0], '\t', i[1]
+        print (i[0], '\t', i[1])
 
     return [x[0] for x in importance], [x[1] for x in importance]
 
 def getCorrMat(data0, data1 = None):
     corr = data0.corr()
     
-    if not isinstance(data1, types.NoneType): #Plot difference in correlations
+    if not isinstance(data1, type(None)): #Plot difference in correlations
         corr -= data1.corr()
 
     f, ax = plt.subplots(figsize=(11, 9))
@@ -88,4 +88,4 @@ def xgCompare(datasets, targets):
         trainAUC = roc_auc_score(y_train, xgb.predict_proba(X_train)[:,1])
         testAUC = roc_auc_score(y_test, xgb.predict_proba(X_test)[:,1])
         
-        print "Dataset {}, train:test ROC AUC {:.5f}:{:.5f}".format(i, trainAUC, testAUC)
+        print ("Dataset {}, train:test ROC AUC {:.5f}:{:.5f}".format(i, trainAUC, testAUC))

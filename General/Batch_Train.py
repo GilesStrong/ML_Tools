@@ -37,7 +37,7 @@ Todo:
 '''
 
 def getBatch(index, datafile):
-    print "Depreciated, use to moving a BatchYielder class"
+    print ("Depreciated, use to moving a BatchYielder class")
     index = str(index)
     weights = None
     if 'fold_' + index + '/weights' in datafile:
@@ -67,12 +67,12 @@ def batchLRFind(batchYielder,
     model.reset_states #Just checking
     
     if not isinstance(batchYielder, BatchYielder):
-        print "HDF5 as input is depreciated, converting to BatchYielder"
+        print ("HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
 
     trainbatch = batchYielder.getBatch(np.random.choice(range(batchYielder.nFolds))) #Load fold
     nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
-    if verbose: print "Using {} steps".format(nSteps)   
+    if verbose: print ("Using {} steps".format(nSteps))   
         
     lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
 
@@ -81,11 +81,11 @@ def batchLRFind(batchYielder,
             binary = True
             nClasses = len(np.unique(trainbatch['targets']))
             if nClasses > 2:
-                print nClasses, "classes found, running in multiclass mode\n"
+                print (nClasses, "classes found, running in multiclass mode\n")
                 trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
                 binary = False
             else:
-                print nClasses, "classes found, running in binary mode\n"
+                print (nClasses, "classes found, running in binary mode\n")
 
     if trainOnWeights:
         model.fit(trainbatch['inputs'], trainbatch['targets'],
@@ -127,18 +127,18 @@ def batchTrainRegressor(data, nSplits,
     results = []
     histories = []
     
-    if cosAnnealMult: print "Using cosine annealing"
+    if cosAnnealMult: print ("Using cosine annealing")
 
     monitor = False
-    if not isinstance(monitorData, types.NoneType):
+    if not isinstance(monitorData, type(None)):
         monitorInputs = monitorData['inputs']
         monitorTargets = monitorData['targets']
         monitor = True
-        print "Using a monitor sample to judge convergence"
+        print ("Using a monitor sample to judge convergence")
 
-    for fold in xrange(nSplits):
+    for fold in range(nSplits):
         foldStart = timeit.default_timer()
-        print "Running fold", fold+1, "/", nSplits
+        print ("Running fold", fold+1, "/", nSplits)
         os.system("rm " + saveLoc + "best.h5")
         best = -1
         epochCounter = 0
@@ -158,7 +158,7 @@ def batchTrainRegressor(data, nSplits,
             cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult)
             callbacks.append(cosAnneal)
 
-        for epoch in xrange(maxEpochs):
+        for epoch in range(maxEpochs):
             epochStart = timeit.default_timer()
 
             for n in trainID: #Loop through training folds
@@ -189,7 +189,7 @@ def batchTrainRegressor(data, nSplits,
                     epochCounter = 0
                     model.save_weights(saveLoc + "best.h5")
                     if verbose:
-                        print '{} New best found: {}'.format(subEpoch, best)
+                        print ('{} New best found: {}'.format(subEpoch, best))
                 elif cosAnnealMult:
                     if cosAnneal.cycle_end:
                         epochCounter += 1
@@ -198,7 +198,7 @@ def batchTrainRegressor(data, nSplits,
 
                 if epochCounter >= patience: #Early stopping
                     if verbose:
-                        print 'Early stopping after {} epochs'.format(subEpoch)
+                        print ('Early stopping after {} epochs'.format(subEpoch))
                     stop = True
                     break
             
@@ -214,12 +214,12 @@ def batchTrainRegressor(data, nSplits,
         results.append({})
         results[-1]['loss'] = best
         
-        if not isinstance(extraMetrics, types.NoneType):
+        if not isinstance(extraMetrics, type(None)):
             metrics = extraMetrics(model.predict(testbatch['inputs'], verbose=0), testbatch['targets'], testbatch['weights'])
             for metric in metrics:
                 results[-1][metric] = metrics[metric]
 
-        print "Score is:", results[-1]
+        print ("Score is:", results[-1])
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
@@ -233,7 +233,7 @@ def batchTrainRegressor(data, nSplits,
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
-        print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
+        print ("Mean", score, "= {} +- {}".format(mean[0], mean[1]))
     print("______________________________________\n")
                       
     if logoutput:
@@ -251,11 +251,11 @@ def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     pred[...] = batchPred
         
 def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=1, outputPipe=None, ensembleSize=None, nFolds=-1, verbose=False):
-    if isinstance(ensembleSize, types.NoneType):
+    if isinstance(ensembleSize, type(None)):
         ensembleSize = len(ensemble)
 
     if not isinstance(batchYielder, BatchYielder):
-        print "Passing HDF5 as input is depreciated, converting to BatchYielder"
+        print ("Passing HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
 
     if nFolds < 0:
@@ -263,7 +263,7 @@ def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=
 
     for fold in range(nFolds):
         if verbose:
-            print 'Predicting batch {} out of {}'.format(fold+1, nFolds)
+            print ('Predicting batch {} out of {}'.format(fold+1, nFolds))
             start = timeit.default_timer()
 
         if not batchYielder.testTimeAug:
@@ -278,7 +278,7 @@ def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=
             batchPred = np.mean(tmpPred, axis=0)
 
         if verbose: 
-            print "Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch))
+            print ("Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch)))
 
         if nOut > 1:
             saveBatchPred(batchPred, 'fold_' + str(fold), batchYielder.source, predName=predName)
@@ -327,15 +327,15 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
     binary = None
 
     if not isinstance(batchYielder, BatchYielder):
-        print "HDF5 as input is depreciated, converting to BatchYielder"
+        print ("HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
 
-    if cosAnnealMult: print "Using cosine annealing"
-    if trainOnWeights: print "Training using weights"
+    if cosAnnealMult: print ("Using cosine annealing")
+    if trainOnWeights: print ("Training using weights")
 
-    for fold in xrange(nSplits):
+    for fold in range(nSplits):
         foldStart = timeit.default_timer()
-        print "Running fold", fold+1, "/", nSplits
+        print ("Running fold", fold+1, "/", nSplits)
         os.system("rm " + saveLoc + "best.h5")
         best = -1
         bestLR = -1
@@ -372,7 +372,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
             swaModel = modelGen(**modelGenParams)
             callbacks.append(swa)
 
-        for epoch in xrange(maxEpochs):
+        for epoch in range(maxEpochs):
             for n in trainID: #Loop through training folds
                 trainbatch = batchYielder.getBatch(n) #Load fold data
                 subEpoch += 1
@@ -381,11 +381,11 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                     binary = True
                     nClasses = len(np.unique(trainbatch['targets']))
                     if nClasses > 2:
-                        print nClasses, "classes found, running in multiclass mode\n"
+                        print (nClasses, "classes found, running in multiclass mode\n")
                         trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
                         binary = False
                     else:
-                        print nClasses, "classes found, running in binary mode\n"
+                        print (nClasses, "classes found, running in binary mode\n")
 
                 if trainOnWeights:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
@@ -412,7 +412,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
                 
                 if swaStart >= 0 and swa.active and cosAnnealMult > 1:
-                    print "SWA loss:", loss
+                    print ("SWA loss:", loss)
 
                 lossHistory.append(loss)
 
@@ -431,7 +431,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                     if reduxDecayActive:
                         cosAnneal.lrs.append(float(K.get_value(model.optimizer.lr)))
                     if verbose:
-                        print '{} New best found: {}'.format(subEpoch, best)
+                        print ('{} New best found: {}'.format(subEpoch, best))
                 elif cosAnnealMult and not reduxDecayActive:
                     if cosAnneal.cycle_end:
                         epochCounter += 1
@@ -444,7 +444,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
 
                 if epochCounter >= tmpPatience: #Early stopping
                     if cosAnnealMult and reduxDecay and not reduxDecayActive:
-                        print 'CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(subEpoch, bestLR)
+                        print ('CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(subEpoch, bestLR))
                         model.load_weights(saveLoc +  "best.h5")
                         cosAnneal.lrs.append(bestLR)
                         K.set_value(model.optimizer.lr, bestLR)
@@ -454,7 +454,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         reduxDecayActive = True
                     else:
                         if verbose:
-                            print 'Early stopping after {} epochs'.format(subEpoch)
+                            print ('Early stopping after {} epochs'.format(subEpoch))
                         stop = True
                         break
             
@@ -470,13 +470,13 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
         results[-1]['loss'] = best
         if binary:
             testbatch = batchYielder.getBatch(testID) #Load testing fold
-            if not isinstance(testbatch['weights'], types.NoneType):
+            if not isinstance(testbatch['weights'], type(None)):
                 results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
                                                      model.predict(testbatch['inputs'], verbose=0),
                                                      sample_weight=testbatch['weights'])
             results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'],
                                                  model.predict(testbatch['inputs'], verbose=0))
-        print "Score is:", results[-1]
+        print ("Score is:", results[-1])
 
         if plotLR: cosAnneal.plot_lr()
         if plotMomentum: cosAnnealMomentum.plot_momentum()
@@ -494,7 +494,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
     plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
-        print "Mean", score, "= {} +- {}".format(mean[0], mean[1])
+        print ("Mean", score, "= {} +- {}".format(mean[0], mean[1]))
     print("______________________________________\n")
                       
     if logoutput:

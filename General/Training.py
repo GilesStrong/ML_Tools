@@ -35,15 +35,15 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     binary = True
     nClasses = len(np.unique(y))
     if nClasses > 2:
-        print nClasses, "classes found, running in multiclass mode\n"
+        print (nClasses, "classes found, running in multiclass mode\n")
         y = utils.to_categorical(y, num_classes=nClasses)
         binary = False
         modelGenParams['nOut'] = nClasses
     else:
-        print nClasses, "classes found, running in binary mode\n"
+        print (nClasses, "classes found, running in binary mode\n")
 
     for i, (train, test) in enumerate(folds):
-        print "Running fold", i+1, "/", nSplits
+        print ("Running fold", i+1, "/", nSplits)
         os.system("rm " + saveLoc + "best.h5")
         foldStart = timeit.default_timer()
 
@@ -70,7 +70,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         results.append({})
         results[-1]['loss'] = model.evaluate(X[test], y[test], verbose=0)
         if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0), sample_weight=weights)
-        print "Score is:", results[-1]
+        print ("Score is:", results[-1])
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
@@ -84,10 +84,10 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     plotTrainingHistory(histories, saveLoc + 'history.png')
 
     meanLoss = uncertRound(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
-    print "Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1])
+    print ("Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1]))
     if binary:
         meanAUC = uncertRound(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
-        print "Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1])
+        print ("Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1]))
     print("______________________________________\n")
 
     return results, histories

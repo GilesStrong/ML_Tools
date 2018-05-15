@@ -9,7 +9,7 @@ class BatchYielder():
         self.augMult = 0
         self.trainTimeAug = False
         self.testTimeAug = False
-        if not isinstance(datafile, types.NoneType):
+        if not isinstance(datafile, type(None)):
             self.addSource(datafile)
 
     def addSource(self, datafile):
@@ -17,7 +17,7 @@ class BatchYielder():
         self.nFolds = len(self.source)
 
     def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
+        if isinstance(datafile, type(None)):
             datafile = self.source
 
         index = str(index)
@@ -53,7 +53,7 @@ class HEPAugBatch(BatchYielder):
             trainTimeAug = False
             testTimeAug = False
             self.augMult = 0
-            print 'No augmentation specified!'
+            print ('No augmentation specified!')
             inputPipe = None
             self.getTestBatch = self.getBatch
             
@@ -65,7 +65,7 @@ class HEPAugBatch(BatchYielder):
         self.testTimeAug = testTimeAug
         self.inputPipe = inputPipe
         
-        if not isinstance(datafile, types.NoneType):
+        if not isinstance(datafile, type(None)):
             self.addSource(datafile)
     
     def rotate(self, inData, vectors):
@@ -83,7 +83,7 @@ class HEPAugBatch(BatchYielder):
                     pass
             
     def getBatch(self, index, datafile=None):
-        if isinstance(datafile, types.NoneType):
+        if isinstance(datafile, type(None)):
             datafile = self.source
             
         index = str(index)
@@ -99,7 +99,7 @@ class HEPAugBatch(BatchYielder):
                     'targets':targets,
                     'weights':weights}
 
-        if isinstance(self.inputPipe, types.NoneType):
+        if isinstance(self.inputPipe, type(None)):
             inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
         else:
             inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
@@ -114,7 +114,7 @@ class HEPAugBatch(BatchYielder):
                 inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
             self.reflect(inputs, vectors)
             
-        if isinstance(self.inputPipe, types.NoneType):
+        if isinstance(self.inputPipe, type(None)):
             inputs = inputs[self.header].values
         else:
             inputs = inputPipe.transform(inputs[self.header].values)
@@ -125,10 +125,10 @@ class HEPAugBatch(BatchYielder):
     
     def getTestBatch(self, index, augIndex, datafile=None):
         if augIndex >= self.augMult:
-            print "Invalid augmentation index passed", augIndex
+            print ("Invalid augmentation index passed", augIndex)
             return -1
         
-        if isinstance(datafile, types.NoneType):
+        if isinstance(datafile, type(None)):
             datafile = self.source
             
         index = str(index)
@@ -139,7 +139,7 @@ class HEPAugBatch(BatchYielder):
         if 'fold_' + index + '/targets' in datafile:
             targets = np.array(datafile['fold_' + index + '/targets'])
             
-        if isinstance(self.inputPipe, types.NoneType):
+        if isinstance(self.inputPipe, type(None)):
             inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
         else:
             inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
@@ -166,7 +166,7 @@ class HEPAugBatch(BatchYielder):
             inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.augRotMult)+1)[augIndex]
             self.rotate(inputs, vectors)
             
-        if isinstance(self.inputPipe, types.NoneType):
+        if isinstance(self.inputPipe, type(None)):
             inputs = inputs[self.header].values
         else:
             inputs = inputPipe.transform(inputs[self.header].values)

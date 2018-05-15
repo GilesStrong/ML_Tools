@@ -19,10 +19,10 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
         if isinstance(cuts, types.ListType):
             loop = True
             if not isinstance(cuts, types.ListType):
-                print "{} plots requested, but not labels passed".format(len(cuts))
+                print ("{} plots requested, but not labels passed".format(len(cuts)))
                 return -1
             elif len(cuts) != len(labels):
-                print "{} plots requested, but {} labels passed".format(len(cuts), len(labels))
+                print ("{} plots requested, but {} labels passed".format(len(cuts), len(labels)))
                 return -1
     
     weightData = None
@@ -86,7 +86,7 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
 def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
     buildCurves = True
     if isinstance(inData, types.NoneType) == isinstance(curves, types.NoneType):
-        print "Must pass either targets and preds, or curves"
+        print ("Must pass either targets and preds, or curves")
         return -1
     if not isinstance(curves, types.NoneType):
         buildCurves = False
@@ -103,7 +103,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
             meanScores = {}
             for i in labels:
                 meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
-                print str(i)+ ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1])
+                print (str(i)+ ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1]))
         else:
             meanScores = {}
             for i in range(len(inData)):
@@ -111,7 +111,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
                     meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
                 else:
                     meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName], sample_weight=inData[i][weightName])
-                print str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]])
+                print (str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]]))
         for i in range(len(inData)):
             if isinstance(weightName, types.NoneType):
                 curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
@@ -204,7 +204,7 @@ def getSamplePredPlot(inData,
         plt.show()      
 
 def plotHistory(histories):
-    print "Depreciated, move to plotTrainingHistory"
+    print ("Depreciated, move to plotTrainingHistory")
     plotTrainingHistory(histories)
     
 def plotTrainingHistory(histories, save=False):

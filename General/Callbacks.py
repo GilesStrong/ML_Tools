@@ -81,7 +81,7 @@ class LRFinder(Callback):
         if math.isnan(loss) or loss>self.best*10:
             if self.verbose > 0:
                 print('Ending training early due to loss increase')
-                self.model.stop_training = True
+            self.model.stop_training = True
         if (loss<self.best and batch>10): self.best=loss
 
 class CosAnneal(Callback):
@@ -301,10 +301,10 @@ class SWA(Callback):
     def on_epoch_end(self, metrics, logs={}):
         if (self.epoch + 1) >= self.swa_start and (isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end):
             if self.swa_n == 0:
-                print "SWA beginning"
+                print ("SWA beginning")
                 self.active = True
             elif not isinstance(self.clrCallback, types.NoneType) and self.clrCallback.cycle_mult > 1:
-                print "Updating average"
+                print ("Updating average")
                 self.active = True
             self.update_average_model()
             self.swa_n += 1
