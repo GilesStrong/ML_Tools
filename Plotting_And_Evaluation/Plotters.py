@@ -15,10 +15,10 @@ from ML_Tools.Plotting_And_Evaluation.Bootstrap import *
 
 def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}):
     loop = False
-    if not isinstance(cuts, types.NoneType):
-        if isinstance(cuts, types.ListType):
+    if not isinstance(cuts, type(None)):
+        if isinstance(cuts, list):
             loop = True
-            if not isinstance(cuts, types.ListType):
+            if not isinstance(cuts, list):
                 print ("{} plots requested, but not labels passed".format(len(cuts)))
                 return -1
             elif len(cuts) != len(labels):
@@ -30,7 +30,7 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
     plt.figure(figsize=(16, 8))
     if loop:
         for i in range(len(cuts)):
-            if isinstance(params, types.ListType):
+            if isinstance(params, list):
                 tempParams = params[i]
             else:
                 tempParams = params
@@ -42,13 +42,13 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
                 
                 cut = (cuts[i])
                 cut = cut & (inData[cut][feat] > featRange[0]) & (inData[cut][feat] < featRange[1])
-                if isinstance(weightName, types.NoneType):
+                if isinstance(weightName, type(None)):
                     plotData = inData.loc[cut, feat]
                 else:
                     plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
                     
             else:
-                if isinstance(weightName, types.NoneType):
+                if isinstance(weightName, type(None)):
                     plotData = inData.loc[cuts[i], feat]
                 else:
                     plotData = np.random.choice(inData.loc[cuts[i], feat], nSamples, p=inData.loc[cuts[i], weightName]/np.sum(inData.loc[cuts[i], weightName]))
@@ -62,14 +62,14 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
             cut = (inData[feat] > featRange[0]) & (inData[feat] < featRange[1])
             
             
-            if isinstance(weightName, types.NoneType):
+            if isinstance(weightName, type(None)):
                 plotData = inData.loc[cut, feat]
             else:
                 plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
                 
                 
         else:
-            if isinstance(weightName, types.NoneType):
+            if isinstance(weightName, type(None)):
                 plotData = inData[feat]
             else:
                 plotData = np.random.choice(inData[feat], nSamples, p=inData[weightName]/np.sum(inData[weightName]))
@@ -85,10 +85,10 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
 
 def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
     buildCurves = True
-    if isinstance(inData, types.NoneType) == isinstance(curves, types.NoneType):
+    if isinstance(inData, type(None)) == isinstance(curves, type(None)):
         print ("Must pass either targets and preds, or curves")
         return -1
-    if not isinstance(curves, types.NoneType):
+    if not isinstance(curves, type(None)):
         buildCurves = False
 
     if buildCurves:
@@ -97,7 +97,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
             aucArgs = []
             for i in range(len(inData)):
                 aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
-                if not isinstance(weightName, types.NoneType):
+                if not isinstance(weightName, type(None)):
                     aucArgs[-1]['weights'] = inData[i][weightName]
             aucs = mpRun(aucArgs, rocauc)
             meanScores = {}
@@ -107,13 +107,13 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
         else:
             meanScores = {}
             for i in range(len(inData)):
-                if isinstance(weightName, types.NoneType):
+                if isinstance(weightName, type(None)):
                     meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
                 else:
                     meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName], sample_weight=inData[i][weightName])
                 print (str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]]))
         for i in range(len(inData)):
-            if isinstance(weightName, types.NoneType):
+            if isinstance(weightName, type(None)):
                 curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
             else:
                 curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values, sample_weight=inData[i][weightName].values)[:2]
@@ -146,7 +146,7 @@ def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_cla
     plt.figure(figsize=(16, 8))
     for i in range(len(inData)):
         hist_kws = {}
-        if not isinstance(weightName, types.NoneType):
+        if not isinstance(weightName, type(None)):
             hist_kws['weights'] = inData[i][weightName]
         sns.distplot(inData[i][predName], label=labels[i], hist_kws=hist_kws, **params)
     plt.legend(loc='best', fontsize=16)

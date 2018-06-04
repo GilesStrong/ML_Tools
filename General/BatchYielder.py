@@ -2,6 +2,7 @@ from __future__ import division
 
 import numpy as np
 import types
+import pandas
 
 class BatchYielder():
     def __init__(self, datafile=None):

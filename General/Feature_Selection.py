@@ -16,7 +16,7 @@ sns.set_style("white")
 
 from ML_Tools.General.PreProc import getPreProcPipes
 
-def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target', datatype='float32'):
+def rankClassifierFeatures(data, trainFeatures, nSplits=10, nJobs=4, weights=None, target='gen_target', datatype='float32'):
     inputPipe, outputPipe = getPreProcPipes(normIn=True)
     inputPipe.fit(data[trainFeatures].values.astype(datatype))
     X = inputPipe.transform(data[trainFeatures].values.astype(datatype))
@@ -34,12 +34,12 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
     for i in trainFeatures:
         featureImportance[i] = 0
 
-    kf = StratifiedKFold(n_splits=10, shuffle=True)
+    kf = StratifiedKFold(n_splits=nSplits, shuffle=True)
     folds = kf.split(X, y)
     for i, (train, test) in enumerate(folds):
-        print ("Running fold", i+1, "/10")
+        print ("Running fold", i+1, "/", nSplits)
         
-        xgbClass = XGBClassifier(n_jobs=4)
+        xgbClass = XGBClassifier(n_jobs=nJobs)
         if weights != None:
             xgbClass.fit(X[train], y[train], sample_weight=w[train])
             print ('ROC AUC: {:.5f}'.format(roc_auc_score(y[test], xgbClass.predict_proba(X[test])[:,1]), sample_weight=w[test]))
@@ -56,7 +56,7 @@ def rankClassifierFeatures(data, trainFeatures, weights=None, target='gen_target
             featureImportance[trainFeatures[indices[N-n-1]]] += xgbClass.feature_importances_[indices[N-n-1]]
 
     names = np.array(list(set(importantFeatures)))
-    scores = np.array([featureImportance[i]/10 for i in names])
+    scores = np.array([featureImportance[i]/nSplits for i in names])
     importance = np.array(sorted(zip(names, scores), key=lambda x: x[1], reverse=True))
 
     print (len(list(set(importantFeatures))), "important features identified")
