@@ -118,7 +118,7 @@ class HEPAugBatch(BatchYielder):
         if isinstance(self.inputPipe, type(None)):
             inputs = inputs[self.header].values
         else:
-            inputs = inputPipe.transform(inputs[self.header].values)
+            inputs = self.inputPipe.transform(inputs[self.header].values)
         
         return {'inputs':inputs,
                 'targets':targets,

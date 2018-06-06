@@ -29,7 +29,7 @@ def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #
         else:
             print ("MVA not currently supported")
             return None
-        if not isinstance(outputPipe, types.NoneType):
+        if not isinstance(outputPipe, type(None)):
             tempPred = outputPipe.inverse_transform(tempPred)
         pred += weights[i] * tempPred
     return pred
@@ -96,7 +96,7 @@ def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inp
                     print ("No other saving currently supported")
                     return None
             elif isinstance(model, XGBoostClassifier):
-                with open(name + '_' + str(i) + '.pkl', 'w') as fout:
+                with open(name + '_' + str(i) + '.pkl', 'wb') as fout:
                     pickle.dump(model, fout)
             else:
                 print ("MVA not currently supported")
@@ -104,13 +104,13 @@ def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inp
         if saveCompileArgs:
             with open(name + '_compile.json', 'w') as fout:
                 json.dump(compileArgs, fout)
-        with open(name + '_weights.pkl', 'w') as fout:
+        with open(name + '_weights.pkl', 'wb') as fout:
             pickle.dump(weights, fout)
         if inputPipe != None:
-            with open(name + '_inputPipe.pkl', 'w') as fout:
+            with open(name + '_inputPipe.pkl', 'wb') as fout:
                 pickle.dump(inputPipe, fout)
         if outputPipe != None:
-            with open(name + '_outputPipe.pkl', 'w') as fout:
+            with open(name + '_outputPipe.pkl', 'wb') as fout:
                 pickle.dump(outputPipe, fout)
 
 def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='model'): #Todo add loading of input feature names
@@ -126,7 +126,7 @@ def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fals
         pass
     for i in range(ensembleSize):
         if len(glob.glob(name + "_" + str(i) + '.pkl')): #BDT
-            with open(name + '_' + str(i) + '.pkl', 'r') as fin:   
+            with open(name + '_' + str(i) + '.pkl', 'rb') as fin:   
                 model = pickle.load(fin)    
         else: #NN
             if loadMode == 'weights':
@@ -135,13 +135,13 @@ def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fals
             elif loadMode == 'model':
                 model = load_model(name + "_" + str(i) + '.h5')
         ensemble.append(model)
-    with open(name + '_weights.pkl', 'r') as fin:
+    with open(name + '_weights.pkl', 'rb') as fin:
         weights = pickle.load(fin)
     if inputPipeLoad:
-        with open(name + '_inputPipe.pkl', 'r') as fin:
+        with open(name + '_inputPipe.pkl', 'rb') as fin:
             inputPipe = pickle.load(fin)
     if outputPipeLoad:
-        with open(name + '_outputPipe.pkl', 'r') as fin:
+        with open(name + '_outputPipe.pkl', 'rb') as fin:
             outputPipe = pickle.load(fin)
     return ensemble, weights, compileArgs, inputPipe, outputPipe
 
