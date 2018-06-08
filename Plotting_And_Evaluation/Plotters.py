@@ -182,13 +182,13 @@ def getSamplePredPlot(inData,
         samples = _getSamples(inData[bkg], sampleName, weightName)
         plt.hist([inData[inData[sampleName] == sample][predName] for sample in samples],
                  weights=[inData[inData[sampleName] == sample][weightName] for sample in samples],
-                 label=samples, **hist_params)
+                 label=[sample.decode("utf-8") for sample in samples], **hist_params)
 
         samples = _getSamples(inData[sig], sampleName, weightName)
         for sample in samples:
             plt.hist(inData[inData[sampleName] == sample][predName],
                      weights=inData[inData[sampleName] == sample][weightName],
-                     label='Signal ' + sample, histtype='step', linewidth='3', **hist_params)
+                     label='Signal ' + sample.decode("utf-8"), histtype='step', linewidth='3', **hist_params)
 
         plt.legend(loc='best', fontsize=16)
         plt.xlabel("Class prediction", fontsize=24, color='black')
