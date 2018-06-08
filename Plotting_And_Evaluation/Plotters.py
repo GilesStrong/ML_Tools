@@ -194,7 +194,7 @@ def getSamplePredPlot(inData,
         plt.xlabel("Class prediction", fontsize=24, color='black')
         plt.xlim(lim)
         if hist_params['normed']:
-            plt.ylabel(r"$\frac{1}{\mathcal{A}\sigma} \frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
+            plt.ylabel(r"$\frac{1}{\mathcal{A}\sigma} \frac{d\left(\mathcal{A}\sigma\right)}{dp}$", fontsize=24, color='black')
         else:
             plt.ylabel(r"$\frac{d\left(\mathcal{A}\sigma\right)}{dp}\ [pb]$", fontsize=24, color='black')
         if logy:
