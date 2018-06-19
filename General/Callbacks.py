@@ -52,11 +52,13 @@ class LRFinder(Callback):
     
     def plot(self, n_skip=0, n_max=-1, yLim=None):
         plt.figure(figsize=(16,8))
-        plt.ylabel("loss")
-        plt.xlabel("learning rate (log scale)")
+        plt.ylabel("Loss", fontsize=24, color='black')
+        plt.xlabel("Learning rate (log scale)", fontsize=24, color='black')
         plt.plot(self.history['lr'][n_skip:n_max], self.history['loss'][n_skip:n_max])
         plt.xscale('log')
         plt.ylim(yLim)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def plot_lr(self):
@@ -286,6 +288,7 @@ class SWA(Callback):
     def __init__(self, swa_start, clrCallback=None):
         super(SWA, self).__init__()
         self.swa_model = None
+        self.base_model = None
         self.swa_start = swa_start
         self.epoch = -1
         self.swa_n = -1
@@ -293,26 +296,27 @@ class SWA(Callback):
         self.clrCallback = clrCallback
         
     def on_train_begin(self, logs={}):
-        if isinstance(self.swa_model, types.NoneType):
+        if isinstance(self.swa_model, type(None)):
             self.swa_model = self.model.get_weights()
+            self.base_model = self.swa_model
             self.epoch = 0
             self.swa_n = 0
 
     def on_epoch_end(self, metrics, logs={}):
-        if (self.epoch + 1) >= self.swa_start and (isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end):
+        if (self.epoch + 1) >= self.swa_start and (isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end):
             if self.swa_n == 0:
                 print ("SWA beginning")
                 self.active = True
-            elif not isinstance(self.clrCallback, types.NoneType) and self.clrCallback.cycle_mult > 1:
+            elif not isinstance(self.clrCallback, type(None)) and self.clrCallback.cycle_mult > 1:
                 print ("Updating average")
                 self.active = True
             self.update_average_model()
             self.swa_n += 1
         
-        if isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end:
+        if isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end:
             self.epoch += 1
 
-        if self.active and not (isinstance(self.clrCallback, types.NoneType) or self.clrCallback.cycle_end or self.clrCallback.cycle_mult == 1):
+        if self.active and not (isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end or self.clrCallback.cycle_mult == 1):
             self.active = False
             
     def update_average_model(self):
@@ -323,3 +327,10 @@ class SWA(Callback):
             swa_param *= self.swa_n
             swa_param += model_param
             swa_param /= (self.swa_n + 1)
+
+    def reset_model(self):
+        '''Reset average weights to default'''
+        print("Reseting average weights")
+        self.swa_model = self.base_model
+        self.swa_n = 0
+        self.active = False

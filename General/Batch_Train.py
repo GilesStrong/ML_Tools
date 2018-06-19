@@ -304,7 +304,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
                          annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
                          oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCycle=False, scale=30, mode='sgd',
-                         swaStart=-1,
+                         swaStart=-1, swaRenewal=-1,
                          trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
@@ -371,6 +371,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                 swa = SWA(swaStart)
             swaModel = modelGen(**modelGenParams)
             callbacks.append(swa)
+            swaEpochs = 0
 
         for epoch in range(maxEpochs):
             for n in trainID: #Loop through training folds
@@ -396,6 +397,14 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                     if swaStart >= 0 and swa.active:
                         swaModel.set_weights(swa.swa_model)
                         loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                        swaEpochs += 1
+                        if swaRenewal >= 0 and swaEpochs >= swaRenewal:
+                            swaEpochs = 0
+                            modelLoss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                            print('swa loss {}, default loss {}'.format(loss, modelLoss))
+                            if modelLoss < loss:
+                                swa.reset_model()
+                                loss = modelLoss
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
                     
@@ -408,6 +417,13 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                     if swaStart >= 0 and swa.active:
                         swaModel.set_weights(swa.swa_model)
                         loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+                        swaEpochs += 1
+                        if swaRenewal >= 0 and swaEpochs >= swaRenewal:
+                            swaEpochs = 0
+                            modelLoss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+                            if modelLoss < loss:
+                                swa.reset_model()
+                                loss = modelLoss
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
                 
