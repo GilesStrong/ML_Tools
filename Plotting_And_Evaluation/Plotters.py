@@ -216,11 +216,15 @@ def plotTrainingHistory(histories, save=False):
             except:
                 pass
             try:
-                plt.plot(history['val_loss'], color='b', label='Testing')
+                plt.plot(history['val_loss'], color='b', label='Validation')
             except:
                 pass
             try:
                 plt.plot(history['mon_loss'], color='r', label='Monitoring')
+            except:
+                pass
+            try:
+                plt.plot(history['swa_val_loss'], color='purple', label='SWA Validation')
             except:
                 pass
         else:
@@ -234,6 +238,10 @@ def plotTrainingHistory(histories, save=False):
                 pass
             try:
                 plt.plot(history['mon_loss'], color='r')
+            except:
+                pass
+            try:
+                plt.plot(history['swa_val_loss'], color='purple')
             except:
                 pass
     plt.legend(loc='best', fontsize=16)
