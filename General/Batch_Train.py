@@ -26,6 +26,7 @@ from ML_Tools.General.BatchYielder import BatchYielder
 '''
 Todo:
 - Change callbacks for nicer interface e.g. pass arguments in dictionary
+- Make it possible to annealMomentum without anealing LR
 - Include getFeature in BatchYielder
 - Make LR finder run over all batches and show combined results
 - Update regressor to use more callbacks and BatchYielder
@@ -303,8 +304,8 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True, setFold=-1):
 def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainParams,
                          cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
                          annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
-                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=10, plotOneCycle=False, scale=30, mode='sgd',
-                         swaStart=-1, swaRenewal=-1,
+                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=0.1, plotOneCycle=False, scale=30, mode='sgd',
+                         swaStart=-1, swaRenewal=-1, sgdReplacement=False,
                          trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False):
@@ -344,12 +345,14 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
         epochCounter = 0
         subEpoch = 0
         stop = False
-        lossHistory = []
+        lossHistory = {'val_loss':[], 'swa_val_loss':[]}
         trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
 
         model = None
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
+        
+        testbatch = batchYielder.getBatch(testID) #Load testing fold
 
         callbacks = []
         if cosAnnealMult:
@@ -366,12 +369,11 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
         
         if swaStart >= 0:
             if cosAnnealMult:
-                swa = SWA(swaStart, cosAnneal)
+                swa = _SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, cosAnneal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
             else:
-                swa = SWA(swaStart)
-            swaModel = modelGen(**modelGenParams)
+                swa = _SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
             callbacks.append(swa)
-            swaEpochs = 0
+        useSWA = False
 
         for epoch in range(maxEpochs):
             for n in trainID: #Loop through training folds
@@ -393,18 +395,16 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                               class_weight = 'auto', sample_weight=trainbatch['weights'],
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
-                    testbatch = batchYielder.getBatch(testID) #Load testing fold
                     if swaStart >= 0 and swa.active:
-                        swaModel.set_weights(swa.swa_model)
-                        loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
-                        swaEpochs += 1
-                        if swaRenewal >= 0 and swaEpochs >= swaRenewal:
-                            swaEpochs = 0
-                            modelLoss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
-                            print('swa loss {}, default loss {}'.format(loss, modelLoss))
-                            if modelLoss < loss:
-                                swa.reset_model()
-                                loss = modelLoss
+                        losses = swa.get_losses()
+                        print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
+                        if losses['swa'] < losses['base']:
+                            loss = losses['swa']
+                            useSWA = True
+                        else:
+                            loss = losses['base']
+                            useSWA = False
+                        
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
                     
@@ -413,24 +413,30 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                               class_weight = 'auto',
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
-                    testbatch = batchYielder.getBatch(testID) #Load testing fold
                     if swaStart >= 0 and swa.active:
-                        swaModel.set_weights(swa.swa_model)
-                        loss = swaModel.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
-                        swaEpochs += 1
-                        if swaRenewal >= 0 and swaEpochs >= swaRenewal:
-                            swaEpochs = 0
-                            modelLoss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
-                            if modelLoss < loss:
-                                swa.reset_model()
-                                loss = modelLoss
+                        losses = swa.get_losses()
+                        print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
+                        if losses['swa'] < losses['base']:
+                            loss = losses['swa']
+                            useSWA = True
+                        else:
+                            loss = losses['base']
+                            useSWA = False
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
                 
                 if swaStart >= 0 and swa.active and cosAnnealMult > 1:
-                    print ("SWA loss:", loss)
-
-                lossHistory.append(loss)
+                    print ("{} SWA loss:", subEpoch, loss)
+                
+                if swaStart >= 0:
+                    if swa.active:
+                        lossHistory['swa_val_loss'].append(losses['swa'])
+                        lossHistory['val_loss'].append(losses['base'])
+                    else:
+                        lossHistory['swa_val_loss'].append(loss)
+                        lossHistory['val_loss'].append(loss)
+                else:
+                    lossHistory['val_loss'].append(loss)        
 
                 if loss <= best or best < 0: #Save best
                     best = loss
@@ -440,8 +446,8 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                         else:
                             bestLR = cosAnneal.lrs[-2]
                     epochCounter = 0
-                    if swaStart >= 0 and swa.active:
-                        swaModel.save_weights(saveLoc + "best.h5")
+                    if swaStart >= 0 and swa.active and useSWA:
+                        swa.test_model.save_weights(saveLoc + "best.h5")
                     else:
                         model.save_weights(saveLoc + "best.h5")
                     if reduxDecayActive:
@@ -480,7 +486,9 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
         model.load_weights(saveLoc +  "best.h5")
 
         histories.append({})
-        histories[-1]['val_loss'] = lossHistory
+        histories[-1]['val_loss'] = lossHistory['val_loss']
+        if swaStart >= 0:
+            histories[-1]['swa_val_loss'] = lossHistory['swa_val_loss']
         
         results.append({})
         results[-1]['loss'] = best
