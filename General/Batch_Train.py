@@ -18,9 +18,10 @@ from random import shuffle
 import sys
 
 from ML_Tools.General.Misc_Functions import uncertRound
-from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
+from ML_Tools.Plotting_And_Evaluation.Plotters import *
 from ML_Tools.General.Ensemble_Functions import *
 from ML_Tools.General.Callbacks import *
+from ML_Tools.General.Metrics import *
 from ML_Tools.General.BatchYielder import BatchYielder
 
 '''
@@ -28,7 +29,6 @@ Todo:
 - Change callbacks for nicer interface e.g. pass arguments in dictionary
 - Make it possible to annealMomentum without anealing LR
 - Include getFeature in BatchYielder
-- Make LR finder run over all batches and show combined results
 - Update regressor to use more callbacks and BatchYielder
 - Combine classifier and regressor methods
 - Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
@@ -56,55 +56,65 @@ def getFolds(n, nSplits):
 def batchLRFind(batchYielder,
                 modelGen, modelGenParams,
                 trainParams, trainOnWeights=True,
-                lrBounds=[1e-5, 10], verbose=False):
+                lrBounds=[1e-5, 10], verbose=False, allFolds=True):
 
     start = timeit.default_timer()
     binary = None
     
-    foldStart = timeit.default_timer()
-
-    model = None
-    model = modelGen(**modelGenParams)
-    model.reset_states #Just checking
-    
     if not isinstance(batchYielder, BatchYielder):
         print ("HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
-
-    trainbatch = batchYielder.getBatch(np.random.choice(range(batchYielder.nFolds))) #Load fold
-    nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
-    if verbose: print ("Using {} steps".format(nSteps))   
-        
-    lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
-
-    if 'class' in modelGenParams['mode'].lower():
-        if binary == None: #Check classification mode
-            binary = True
-            nClasses = len(np.unique(trainbatch['targets']))
-            if nClasses > 2:
-                print (nClasses, "classes found, running in multiclass mode\n")
-                trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
-                binary = False
-            else:
-                print (nClasses, "classes found, running in binary mode\n")
-
-    if trainOnWeights:
-        model.fit(trainbatch['inputs'], trainbatch['targets'],
-                  class_weight = 'auto', sample_weight=trainbatch['weights'],
-                  callbacks = [lrFinder], **trainParams) #Train for one epoch
-
+    
+    if allFolds:
+        indeces = range(batchYielder.nFolds)
     else:
-        model.fit(trainbatch['inputs'], trainbatch['targets'],
-                  class_weight = 'auto',callbacks = [lrFinder], **trainParams) #Train for one epoch
+        indeces = [np.random.choice(range(batchYielder.nFolds))]
+    
+    lrFinders = []
+    for index in indeces:
+        model = None
+        model = modelGen(**modelGenParams)
+        model.reset_states #Just checking
+    
+        trainbatch = batchYielder.getBatch(np.random.choice(range(batchYielder.nFolds))) #Load fold
+        nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
+        if verbose: print ("Using {} steps".format(nSteps))   
+
+        lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
+
+        if 'class' in modelGenParams['mode'].lower():
+            if binary == None: #Check classification mode
+                binary = True
+                nClasses = len(np.unique(trainbatch['targets']))
+                if nClasses > 2:
+                    print (nClasses, "classes found, running in multiclass mode\n")
+                    trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
+                    binary = False
+                else:
+                    print (nClasses, "classes found, running in binary mode\n")
+
+        if trainOnWeights:
+            model.fit(trainbatch['inputs'], trainbatch['targets'],
+                      class_weight = 'auto', sample_weight=trainbatch['weights'],
+                      callbacks = [lrFinder], **trainParams) #Train for one epoch
+
+        else:
+            model.fit(trainbatch['inputs'], trainbatch['targets'],
+                      class_weight = 'auto',callbacks = [lrFinder], **trainParams) #Train for one epoch
+        
+        lrFinders.append(lrFinder)
 
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    lrFinder.plot_lr()    
-    lrFinder.plot(n_skip=10)
+    if allFolds:
+        getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10)
+    else:
+        lrFinders[0].plot_lr()    
+        lrFinders[0].plot(n_skip=10)
     print("______________________________________\n")
         
-    return lrFinder
+    return lrFinders
 
 def batchTrainRegressor(data, nSplits,
                         modelGen, modelGenParams,
@@ -308,7 +318,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                          swaStart=-1, swaRenewal=-1, sgdReplacement=False,
                          trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
-                         verbose=False, logoutput=False):
+                         verbose=False, logoutput=False, amsSize=0, plot=True):
     
     os.system("mkdir " + saveLoc)
     os.system("rm " + saveLoc + "*.h5")
@@ -494,12 +504,16 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
         results[-1]['loss'] = best
         if binary:
             testbatch = batchYielder.getBatch(testID) #Load testing fold
+            prediction = model.predict(testbatch['inputs'], verbose=0)
             if not isinstance(testbatch['weights'], type(None)):
                 results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
-                                                     model.predict(testbatch['inputs'], verbose=0),
-                                                     sample_weight=testbatch['weights'])
-            results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'],
-                                                 model.predict(testbatch['inputs'], verbose=0))
+                                                      prediction,
+                                                      sample_weight=testbatch['weights'])
+            results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'], prediction)
+
+            if amsSize:
+                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getBatchDF(testID, preds=prediction, weightName='orig_weights'),
+                                                                       wFactor=amsSize/len(prediction))
         print ("Score is:", results[-1])
 
         if plotLR: cosAnneal.plot_lr()
@@ -515,7 +529,7 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
+    if plot: plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
         print ("Mean", score, "= {} +- {}".format(mean[0], mean[1]))

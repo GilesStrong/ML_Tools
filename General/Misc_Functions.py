@@ -1,7 +1,9 @@
 from sklearn.model_selection import train_test_split
 
 def uncertRound(value, uncert):
-    i = 0
+    if uncert == 0:
+        return value, uncert
+    i = 0    
     while uncert*(10**i) <= 1:
         i += 1
 

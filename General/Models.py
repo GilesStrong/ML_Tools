@@ -16,7 +16,7 @@ def getModel(version, nIn, compileArgs, mode, nOut=1):
     if 'width' in compileArgs:
         width = compileArgs['width']
     else:
-        width = 128
+        width = 100
     if 'do' in compileArgs:
         do = compileArgs['do']
     else:
