@@ -432,7 +432,7 @@ class SWA(Callback):
     '''Modified from fastai version'''
     def __init__(self, swa_start, testBatch, testModel, verbose=False, swaRenewal=-1,
                  clrCallback=None, trainOnWeights=False, sgdReplacement=False):
-        super(_SWA, self).__init__()
+        super(SWA, self).__init__()
         self.swa_model = None
         self.swa_model_new = None
         self.swa_start = swa_start
