@@ -93,8 +93,9 @@ class HEPAugBatch(BatchYielder):
     
     def rotate(self, inData, vectors):
         for vector in vectors:
-            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
+            inData.loc[:, vector + '_pxtmp'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
             inData.loc[:, vector + '_py'] = inData.loc[:, vector + '_py']*np.cos(inData.loc[:, 'aug_angle'])+inData.loc[:, vector + '_px']*np.sin(inData.loc[:, 'aug_angle'])
+            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_pxtmp']
     
     def reflect(self, inData, vectors):
         for vector in vectors:

@@ -17,7 +17,6 @@ def AMS(s, b, br=10.0):
               )        
     where b_r = 10, b = background, s = signal, log is natural logarithm """
     
-    br = 10.0
     radicand = 2 *( (s+b+br) * math.log (1.0 + s/(b+br)) -s)
     if radicand < 0:
         print('radicand is negative. Exiting')
@@ -85,7 +84,7 @@ def mpSKFoldAMS(data, i, size, nFolds, br, out_q):
             outdict[str(uids[j]) + '_cuts'] = cut
     out_q.put(outdict)
 
-def bootstrapMeanAMS(data, wFactor=250000./50000., N=10, br=10):
+def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=10):
     procs = []
     out_q = mp.Queue()
     for i in range(N):
