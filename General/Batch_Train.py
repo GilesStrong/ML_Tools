@@ -114,165 +114,6 @@ def batchLRFind(batchYielder,
         
     return lrFinders
 
-def batchTrainRegressor(batchYielder, nSplits,
-                        modelGen, modelGenParams,
-                        trainParams, cosAnnealMult=0, trainOnWeights=True,
-                        extraMetrics=None, monitorData=None,
-                        saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
-    
-    os.system("mkdir " + saveLoc)
-    os.system("rm " + saveLoc + "*.h5")
-    os.system("rm " + saveLoc + "*.json")
-    os.system("rm " + saveLoc + "*.pkl")
-    os.system("rm " + saveLoc + "*.png")
-    os.system("rm " + saveLoc + "*.log")
-    
-    if logoutput:
-        old_stdout = sys.stdout
-        log_file = open(saveLoc + 'training_log.log', 'w')
-        sys.stdout = log_file
-
-    start = timeit.default_timer()
-    results = []
-    histories = []
-    
-    if not isinstance(batchYielder, BatchYielder):
-        print ("HDF5 as input is depreciated, converting to BatchYielder")
-        batchYielder = BatchYielder(batchYielder)
-
-    if cosAnnealMult: print ("Using cosine annealing")
-
-    monitor = False
-    if not isinstance(monitorData, type(None)):
-        monitorInputs = monitorData['inputs']
-        monitorTargets = monitorData['targets']
-        monitor = True
-        print ("Using a monitor sample to judge convergence")
-
-    for fold in range(nSplits):
-        foldStart = timeit.default_timer()
-        print ("Running fold", fold+1, "/", nSplits)
-        os.system("rm " + saveLoc + "best.h5")
-        best = -1
-        bestLR = -1
-        reduxDecayActive = False
-        tmpPatience = patience
-        epochCounter = 0
-        subEpoch = 0
-        stop = False
-        lossHistory = {'val_loss':[], 'swa_val_loss':[]}
-        trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
-
-        model = None
-        model = modelGen(**modelGenParams)
-        model.reset_states #Just checking
-        
-        testbatch = batchYielder.getBatch(testID) #Load testing fold
-
-        callbacks = []
-        if cosAnnealMult:
-            cosAnneal = CosAnneal(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
-            callbacks.append(cosAnneal)
-        
-        if annealMomentum:
-            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
-            callbacks.append(cosAnnealMomentum)    
-
-        if oneCycle:
-            oneCycle = OneCycle(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
-            callbacks.append(oneCycle)  
-        
-        if swaStart >= 0:
-            if cosAnnealMult:
-                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, cosAnneal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
-            else:
-                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
-            callbacks.append(swa)
-        useSWA = False
-
-        for epoch in range(maxEpochs):
-            epochStart = timeit.default_timer()
-
-            for n in trainID: #Loop through training folds
-                trainbatch = batchYielder.getBatch(n) #Load fold data
-                subEpoch += 1
-
-                if trainOnWeights:
-                    model.fit(trainbatch['inputs'], trainbatch['targets'],
-                              sample_weight=trainbatch['weights'],
-                              callbacks=callbacks, **trainParams) #Train for one epoch
-
-                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
-                else:
-                    model.fit(trainbatch['inputs'], trainbatch['targets'],
-                              callbacks=callbacks, **trainParams) #Train for one epoch
-                    
-                    loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
-
-                lossHistory.append(loss)
-
-                monLoss = loss
-                if monitor:
-                    monLoss = model.evaluate(monitorInputs, monitorTargets, verbose=0)
-                    monitorHistory.append(monLoss)
-
-                if monLoss <= best or best < 0: #Save best
-                    best = monLoss
-                    epochCounter = 0
-                    model.save_weights(saveLoc + "best.h5")
-                    if verbose:
-                        print ('{} New best found: {}'.format(subEpoch, best))
-                elif cosAnnealMult:
-                    if cosAnneal.cycle_end:
-                        epochCounter += 1
-                else:
-                    epochCounter += 1
-
-                if epochCounter >= patience: #Early stopping
-                    if verbose:
-                        print ('Early stopping after {} epochs'.format(subEpoch))
-                    stop = True
-                    break
-            
-            if stop:
-                break
-
-        model.load_weights(saveLoc +  "best.h5")
-
-        histories.append({})
-        histories[-1]['val_loss'] = lossHistory
-        histories[-1]['mon_loss'] = monitorHistory
-        
-        results.append({})
-        results[-1]['loss'] = best
-        
-        if not isinstance(extraMetrics, type(None)):
-            metrics = extraMetrics(model.predict(testbatch['inputs'], verbose=0), testbatch['targets'], testbatch['weights'])
-            for metric in metrics:
-                results[-1][metric] = metrics[metric]
-
-        print ("Score is:", results[-1])
-
-        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
-
-        model.save(saveLoc +  'train_' + str(fold) + '.h5')
-        with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
-            pickle.dump(results, fout)
-
-    print("\n______________________________________")
-    print("Training finished")
-    print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
-    for score in results[0]:
-        mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
-        print ("Mean", score, "= {} +- {}".format(mean[0], mean[1]))
-    print("______________________________________\n")
-                      
-    if logoutput:
-        sys.stdout = old_stdout
-        log_file.close()
-    return results, histories
-
 def saveBatchPred(batchPred, fold, datafile, predName='pred'):
     try:
         datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
@@ -340,6 +181,16 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                          trainOnWeights=True,
                          saveLoc='train_weights/', patience=10, maxEpochs=10000,
                          verbose=False, logoutput=False, amsSize=0, plot=True):
+    print("Depreciated, move to using batchTrainModel")
+
+def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams,
+                    cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
+                    annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
+                    oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=0.1, plotOneCycle=False, scale=30, mode='sgd',
+                    swaStart=-1, swaRenewal=-1, sgdReplacement=False,
+                    trainOnWeights=True,
+                    saveLoc='train_weights/', patience=10, maxEpochs=10000,
+                    verbose=False, logoutput=False, amsSize=0, plot=True):
     
     os.system("mkdir " + saveLoc)
     os.system("rm " + saveLoc + "*.h5")
