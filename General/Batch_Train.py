@@ -114,9 +114,9 @@ def batchLRFind(batchYielder,
         
     return lrFinders
 
-def batchTrainRegressor(data, nSplits,
+def batchTrainRegressor(batchYielder, nSplits,
                         modelGen, modelGenParams,
-                        trainParams, cosAnnealMult=0, trainOnWeights=True, getBatch=getBatch,
+                        trainParams, cosAnnealMult=0, trainOnWeights=True,
                         extraMetrics=None, monitorData=None,
                         saveLoc='train_weights/', patience=10, maxEpochs=10000, verbose=False, logoutput=False):
     
@@ -136,6 +136,10 @@ def batchTrainRegressor(data, nSplits,
     results = []
     histories = []
     
+    if not isinstance(batchYielder, BatchYielder):
+        print ("HDF5 as input is depreciated, converting to BatchYielder")
+        batchYielder = BatchYielder(batchYielder)
+
     if cosAnnealMult: print ("Using cosine annealing")
 
     monitor = False
@@ -150,28 +154,47 @@ def batchTrainRegressor(data, nSplits,
         print ("Running fold", fold+1, "/", nSplits)
         os.system("rm " + saveLoc + "best.h5")
         best = -1
+        bestLR = -1
+        reduxDecayActive = False
+        tmpPatience = patience
         epochCounter = 0
         subEpoch = 0
         stop = False
-        lossHistory = []
-        monitorHistory = []
+        lossHistory = {'val_loss':[], 'swa_val_loss':[]}
         trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
-        testbatch = getBatch(testID, data) #Load testing fold
 
         model = None
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
+        
+        testbatch = batchYielder.getBatch(testID) #Load testing fold
 
         callbacks = []
         if cosAnnealMult:
-            cosAnneal = CosAnneal(math.ceil(len(data['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult)
+            cosAnneal = CosAnneal(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
             callbacks.append(cosAnneal)
+        
+        if annealMomentum:
+            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
+            callbacks.append(cosAnnealMomentum)    
+
+        if oneCycle:
+            oneCycle = OneCycle(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
+            callbacks.append(oneCycle)  
+        
+        if swaStart >= 0:
+            if cosAnnealMult:
+                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, cosAnneal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
+            else:
+                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
+            callbacks.append(swa)
+        useSWA = False
 
         for epoch in range(maxEpochs):
             epochStart = timeit.default_timer()
 
             for n in trainID: #Loop through training folds
-                trainbatch = getBatch(n, data) #Load fold data
+                trainbatch = batchYielder.getBatch(n) #Load fold data
                 subEpoch += 1
 
                 if trainOnWeights:
@@ -333,7 +356,10 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
     start = timeit.default_timer()
     results = []
     histories = []
-    binary = None
+    if 'class' in modelGenParams['mode'].lower():
+        binary = None
+    else:
+        binary = False
 
     if not isinstance(batchYielder, BatchYielder):
         print ("HDF5 as input is depreciated, converting to BatchYielder")
