@@ -10,19 +10,23 @@ import glob
 
 from keras.models import Sequential,model_from_json, load_model
 
-#from rep.estimators import XGBoostClassifier
+from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
 def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
-    pred = np.zeros((len(inData), nOut))
+    if isinstance(inData, type(np.array)):
+        pred = np.zeros((len(inData), nOut)) #Purely continuous
+    else:
+        pred = np.zeros((len(inData[0]), nOut)) # Contains categorical
+        
     if n == -1:
         n = len(ensemble)+1
     ensemble = ensemble[0:n] #Use only specified number of classifiers
     weights = weights[0:n]
     weights = weights/weights.sum() #Renormalise weights
     for i, model in enumerate(ensemble):
-        if isinstance(model, Sequential):
+        if isinstance(model, Sequential) or isinstance(model, Model):
             tempPred =  model.predict(inData, verbose=0)
         elif isinstance(model, XGBoostClassifier):
             tempPred = model.predict_proba(inData)[:,1][:, np.newaxis] #Works for one output, might need to be fixed for multiclass
@@ -84,7 +88,7 @@ def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inp
         os.system("rm " + name + "*.pkl")
         saveCompileArgs = False
         for i, model in enumerate(ensemble):
-            if isinstance(model, Sequential):
+            if isinstance(model, Sequential) or isinstance(model, Model):
                 saveCompileArgs = True
                 if saveMode == 'weights':
                     json_string = model.to_json()

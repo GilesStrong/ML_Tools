@@ -6,6 +6,7 @@ import pandas
 
 '''
 Todo:
+- Ammend HEP yielder to work with categorical features
 - Include getFeature in BatchYielder
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
@@ -13,17 +14,19 @@ Todo:
 '''
 
 class BatchYielder():
-    def __init__(self, datafile=None):
+    def __init__(self, datafile=None, nCats=0):
+        self.nCats = nCats
         self.augmented = False
         self.augMult = 0
         self.trainTimeAug = False
         self.testTimeAug = False
         if not isinstance(datafile, type(None)):
-            self.addSource(datafile)
+            self.addSource(datafile, self.nCats)
 
-    def addSource(self, datafile):
+    def addSource(self, datafile, nCats=0):
         self.source = datafile
         self.nFolds = len(self.source)
+        self.nCats = nCats
 
     def getBatch(self, index, datafile=None):
         if isinstance(datafile, type(None)):
@@ -31,28 +34,24 @@ class BatchYielder():
 
         index = str(index)
         weights = None
-        targets = None
         if 'fold_' + index + '/weights' in datafile:
             weights = np.array(datafile['fold_' + index + '/weights'])
         if 'fold_' + index + '/targets' in datafile:
             targets = np.array(datafile['fold_' + index + '/targets'])
-        return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
+        
+        if self.nCats:
+            inputs = []
+            allInputs = np.array(datafile['fold_' + index + '/inputs'])
+            for i in range(self.nCats):
+                inputs.append(allInputs[:,i])
+            inputs.append(allInputs[:,i+1:])
+            
+        else:
+            inputs = np.array(datafile['fold_' + index + '/inputs'])
+            
+        return {'inputs':inputs,
                 'targets':targets,
                 'weights':weights}
-
-    def getBatchDF(self, index, datafile=None, preds=None, weightName='weights'):
-        if isinstance(datafile, type(None)):
-            datafile = self.source
-
-        index = str(index)
-        data = pandas.DataFrame()
-        if 'fold_' + index + '/' + weightName in datafile:
-            data['gen_weight'] = np.array(datafile['fold_' + index + '/' + weightName])
-        if 'fold_' + index + '/targets' in datafile:
-            data['gen_target'] = np.array(datafile['fold_' + index + '/targets'])
-        if not isinstance(preds, type(None)):
-            data['pred_class'] = preds
-        return data
 
 class HEPAugBatch(BatchYielder):
     def __init__(self, header, datafile=None, inputPipe=None,

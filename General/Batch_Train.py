@@ -28,8 +28,6 @@ from ML_Tools.General.BatchYielder import BatchYielder
 Todo:
 - Change callbacks for nicer interface e.g. pass arguments in dictionary
 - Make it possible to annealMomentum without anealing LR
-- Update regressor to use more callbacks and BatchYielder
-- Combine classifier and regressor methods
 - Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
