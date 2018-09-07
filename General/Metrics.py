@@ -10,21 +10,28 @@ from ML_Tools.General.Misc_Functions import uncertRound
 
 wFactor = 250000/50000
 
-def AMS(s, b, br=10.0):
+def AMS(s, b, br=0, deltaB=0):
     """ Approximate Median Significance defined as:
         AMS = sqrt(
                 2 { (s + b + b_r) log[1 + (s/(b+b_r))] - s}
               )        
     where b_r = 10, b = background, s = signal, log is natural logarithm """
     
-    radicand = 2 *( (s+b+br) * math.log (1.0 + s/(b+br)) -s)
+    if not deltaB:
+        radicand = 2 *( (s+b+br) * math.log (1.0 + s/(b+br)) -s)
+
+    else:
+        np.square(sigmaB2 = deltaB*b)
+        radicand = 2*(((s+b)*np.log((s+b)*(b+sigmaB2)/((b**2)+((s+b)*sigmaB2))))-
+                      (((b**2)/sigmaB2)*np.log(1+((sigmaB2*s)/(b*(b+sigmaB2))))))
+
     if radicand < 0:
         print('radicand is negative. Exiting')
         return -1
     else:
         return math.sqrt(radicand)
 
-def amsScanQuick(inData, wFactor=250000./50000., br=10):
+def amsScanQuick(inData, wFactor=250000./50000., br=0, deltaB=0):
     '''Determine optimum AMS and cut,
     wFactor used rescale weights to get comparable AMSs
     sufferes from float precison'''
@@ -35,7 +42,7 @@ def amsScanQuick(inData, wFactor=250000./50000., br=10):
     b = np.sum(inData.loc[(inData['gen_target'] == 0), 'gen_weight'])
 
     for i, cut in enumerate(inData['pred_class']):
-        ams = AMS(max(0, s*wFactor), max(0, b*wFactor), br)
+        ams = AMS(max(0, s*wFactor), max(0, b*wFactor), br, deltaB)
         
         if ams > amsMax:
             amsMax = ams
@@ -47,19 +54,28 @@ def amsScanQuick(inData, wFactor=250000./50000., br=10):
             
     return amsMax, threshold
 
-def amsScanSlow(inData, wFactor=250000./50000., br=10, start=0.9):
+def amsScanSlow(inData, wFactor=250000./50000., br=0, systB=0, useStat=False, start=0.9, minEvents=25):
     '''Determine optimum AMS and cut,
     wFactor used rescale weights to get comparable AMSs
-    slower than quick, but doesn suffer from float precision'''
+    slower than quick, but doesn't suffer from float precision'''
     amsMax = 0
     threshold = 0.0
     signal = inData[inData['gen_target'] == 1]
     bkg = inData[inData['gen_target'] == 0]
     
+    systB2 = np.square(systB)
     for i, cut in enumerate(inData.loc[inData.pred_class >= start, 'pred_class'].values):
+        bkgPass = bkg.loc[(bkg.pred_class >= cut), 'gen_weight']
+        nBkg = len(bkgPass)
+        if nBkg < minEvents: continue
+
         s = np.sum(signal.loc[(signal.pred_class >= cut), 'gen_weight'])
-        b = np.sum(bkg.loc[(bkg.pred_class >= cut), 'gen_weight'])
-        ams = AMS(s*wFactor, b*wFactor, br)
+        b = np.sum(bkgPass)
+        if useStat:
+            deltaB = np.sqrt(systB2+(1/nBkg))
+        else:
+            deltaB = systB
+        ams = AMS(s*wFactor, b*wFactor, br, deltaB)
         
         if ams > amsMax:
             amsMax = ams
@@ -84,7 +100,7 @@ def mpSKFoldAMS(data, i, size, nFolds, br, out_q):
             outdict[str(uids[j]) + '_cuts'] = cut
     out_q.put(outdict)
 
-def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=10):
+def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=0):
     procs = []
     out_q = mp.Queue()
     for i in range(N):
@@ -111,7 +127,7 @@ def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=10):
     print('Exact mean cut {}, corresponds to AMS of {}'.format(np.mean(cuts), ams))
     return (meanAMS[0], meanCut[0])
 
-def bootstrapSKFoldMeanAMS(data, size=250000., N=10, nFolds=500, br=10):
+def bootstrapSKFoldMeanAMS(data, size=250000., N=10, nFolds=500, br=0):
     print("Warning, this method might not be trustworthy: cut decreases with nFolds")
     procs = []
     out_q = mp.Queue()

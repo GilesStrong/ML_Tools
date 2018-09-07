@@ -13,7 +13,7 @@ import types
 from ML_Tools.General.Misc_Functions import uncertRound
 from ML_Tools.Plotting_And_Evaluation.Bootstrap import * 
 
-def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}):
+def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}, moments=False):
     loop = False
     if not isinstance(cuts, type(None)):
         if isinstance(cuts, list):
@@ -52,7 +52,11 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
                     plotData = inData.loc[cuts[i], feat]
                 else:
                     plotData = np.random.choice(inData.loc[cuts[i], feat], nSamples, p=inData.loc[cuts[i], weightName]/np.sum(inData.loc[cuts[i], weightName]))
-                
+            
+            label = labels[i]
+            if moments:
+                label += r', $\bar{x}=$' + str(np.mean(plotData)) + r', $\sigma_x=$' + str(np.std(plotData))
+
             sns.distplot(plotData, label=labels[i], **tempParams)
     else:
         if plotBulk: #Ignore tails for indicative plotting
@@ -73,9 +77,13 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
                 plotData = inData[feat]
             else:
                 plotData = np.random.choice(inData[feat], nSamples, p=inData[weightName]/np.sum(inData[weightName]))
-                                
-        sns.distplot(plotData, **params)
-    if loop:
+        
+        label = ''
+        if moments:
+            label += r', $\bar{x}=$' + str(np.mean(plotData)) + r', $\sigma_x=$' + str(np.std(plotData))
+        sns.distplot(plotData, label=label, **params)
+
+    if loop or moments:
         plt.legend(loc='best', fontsize=16)
     plt.xticks(fontsize=16, color='black')
     plt.yticks(fontsize=16, color='black')
@@ -168,7 +176,7 @@ def _getSamples(inData, sampleName, weightName):
 
 def getSamplePredPlot(inData, 
                       targetName='gen_target', sampleName='gen_sample', predName='pred_class', weightName='gen_weight',
-                      lim=(0,1), nBins = 35, logy=True, pallet='nipy_spectral', desat=0.8,
+                      lim=(0,1), nBins = 35, logy=True, pallet='magma', desat=1.0,
                       hist_params={'normed': True, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
     
     hist_params['bins'] = nBins
@@ -184,13 +192,13 @@ def getSamplePredPlot(inData,
         samples = _getSamples(inData[bkg], sampleName, weightName)
         plt.hist([inData[inData[sampleName] == sample][predName] for sample in samples],
                  weights=[inData[inData[sampleName] == sample][weightName] for sample in samples],
-                 label=[sample.decode("utf-8") for sample in samples], **hist_params)
+                 label=samples, **hist_params)
 
         samples = _getSamples(inData[sig], sampleName, weightName)
         for sample in samples:
             plt.hist(inData[inData[sampleName] == sample][predName],
                      weights=inData[inData[sampleName] == sample][weightName],
-                     label='Signal ' + sample.decode("utf-8"), histtype='step', linewidth='3', **hist_params)
+                     label='Signal ' + sample, histtype='step', linewidth='3', **hist_params)
 
         plt.legend(loc='best', fontsize=16)
         plt.xlabel("Class prediction", fontsize=24, color='black')

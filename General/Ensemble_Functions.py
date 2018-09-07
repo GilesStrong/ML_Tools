@@ -8,14 +8,14 @@ import types
 from six.moves import cPickle as pickle
 import glob
 
-from keras.models import Sequential,model_from_json, load_model
+from keras.models import Sequential, Model, model_from_json, load_model
 
 from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
 def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
-    if isinstance(inData, type(np.array)):
+    if isinstance(inData, np.ndarray):
         pred = np.zeros((len(inData), nOut)) #Purely continuous
     else:
         pred = np.zeros((len(inData[0]), nOut)) # Contains categorical

@@ -52,7 +52,7 @@ def getFolds(n, nSplits):
 def batchLRFind(batchYielder,
                 modelGen, modelGenParams,
                 trainParams, trainOnWeights=True,
-                lrBounds=[1e-5, 10], verbose=False, allFolds=True):
+                lrBounds=[1e-5, 10], verbose=False, nFolds=-1):
 
     start = timeit.default_timer()
     binary = None
@@ -61,10 +61,10 @@ def batchLRFind(batchYielder,
         print ("HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
     
-    if allFolds:
+    if nFolds < 1:
         indeces = range(batchYielder.nFolds)
     else:
-        indeces = [np.random.choice(range(batchYielder.nFolds))]
+        indeces = range(nFolds)
     
     lrFinders = []
     for index in indeces:
@@ -103,7 +103,7 @@ def batchLRFind(batchYielder,
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    if allFolds:
+    if nFolds != 1:
         getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10)
     else:
         lrFinders[0].plot_lr()    
