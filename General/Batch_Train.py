@@ -91,7 +91,7 @@ def batchLRFind(batchYielder,
 
         if trainOnWeights:
             model.fit(trainbatch['inputs'], trainbatch['targets'],
-                      class_weight = 'auto', sample_weight=trainbatch['weights'],
+                      sample_weight=trainbatch['weights'],
                       callbacks = [lrFinder], **trainParams) #Train for one epoch
 
         else:
@@ -275,7 +275,7 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
 
                 if trainOnWeights:
                     model.fit(trainbatch['inputs'], trainbatch['targets'],
-                              class_weight = 'auto', sample_weight=trainbatch['weights'],
+                              sample_weight=trainbatch['weights'],
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
                     if swaStart >= 0 and swa.active:
