@@ -8,20 +8,22 @@ from sklearn.model_selection import StratifiedKFold
 
 from ML_Tools.General.Misc_Functions import uncertRound
 
-wFactor = 250000/50000
-
 def AMS(s, b, br=0, deltaB=0):
     """ Approximate Median Significance defined as:
         AMS = sqrt(
                 2 { (s + b + b_r) log[1 + (s/(b+b_r))] - s}
               )        
     where b_r = 10, b = background, s = signal, log is natural logarithm """
+
+    if b == 0:
+        print("No Background present, returning AMS=-1")
+        return -1
     
     if not deltaB:
         radicand = 2 *( (s+b+br) * math.log (1.0 + s/(b+br)) -s)
 
     else:
-        np.square(sigmaB2 = deltaB*b)
+        sigmaB2 = np.square(deltaB*b)
         radicand = 2*(((s+b)*np.log((s+b)*(b+sigmaB2)/((b**2)+((s+b)*sigmaB2))))-
                       (((b**2)/sigmaB2)*np.log(1+((sigmaB2*s)/(b*(b+sigmaB2))))))
 
@@ -31,7 +33,7 @@ def AMS(s, b, br=0, deltaB=0):
     else:
         return math.sqrt(radicand)
 
-def amsScanQuick(inData, wFactor=250000./50000., br=0, deltaB=0):
+def amsScanQuick(inData, wFactor=1, br=0, deltaB=0):
     '''Determine optimum AMS and cut,
     wFactor used rescale weights to get comparable AMSs
     sufferes from float precison'''
@@ -54,7 +56,7 @@ def amsScanQuick(inData, wFactor=250000./50000., br=0, deltaB=0):
             
     return amsMax, threshold
 
-def amsScanSlow(inData, wFactor=250000./50000., br=0, systB=0, useStat=False, start=0.9, minEvents=25):
+def amsScanSlow(inData, wFactor=1, br=0, systB=0, useStat=False, start=0.9, minEvents=10):
     '''Determine optimum AMS and cut,
     wFactor used rescale weights to get comparable AMSs
     slower than quick, but doesn't suffer from float precision'''
@@ -93,14 +95,14 @@ def mpSKFoldAMS(data, i, size, nFolds, br, out_q):
     uids = range(i*nFolds,(i+1)*nFolds)
     outdict = {}
 
-    for j, (train, test) in enumerate(folds):
-        ams, cut = amsScanQuick(data.iloc[test], size/len(test), br)
+    for j, (_, fold) in enumerate(folds):
+        ams, cut = amsScanQuick(data.iloc[fold], size/len(fold), br)
         if ams > 0:
             outdict[str(uids[j]) + '_ams'] = ams
             outdict[str(uids[j]) + '_cuts'] = cut
     out_q.put(outdict)
 
-def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=0):
+def bootstrapMeanAMS(data, wFactor=1, N=512, br=0):
     procs = []
     out_q = mp.Queue()
     for i in range(N):
@@ -127,12 +129,11 @@ def bootstrapMeanAMS(data, wFactor=250000./50000., N=512, br=0):
     print('Exact mean cut {}, corresponds to AMS of {}'.format(np.mean(cuts), ams))
     return (meanAMS[0], meanCut[0])
 
-def bootstrapSKFoldMeanAMS(data, size=250000., N=10, nFolds=500, br=0):
+def bootstrapSKFoldMeanAMS(data, size=1, N=10, nFolds=500, br=0):
     print("Warning, this method might not be trustworthy: cut decreases with nFolds")
     procs = []
     out_q = mp.Queue()
     for i in range(N):
-        indeces = np.random.choice(data.index, len(data), replace=True)
         p = mp.Process(target=mpSKFoldAMS, args=(data, i, size, nFolds, br, out_q))
         procs.append(p)
         p.start() 

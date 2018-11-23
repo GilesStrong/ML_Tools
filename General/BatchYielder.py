@@ -11,6 +11,7 @@ Todo:
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
 - Add method to BatchYielder to import other data into correct format, e.g. csv
+- Generalise getBatchDF
 '''
 
 class BatchYielder():
@@ -52,6 +53,20 @@ class BatchYielder():
         return {'inputs':inputs,
                 'targets':targets,
                 'weights':weights}
+
+    def getBatchDF(self, index, datafile=None, preds=None, weightName='weights'):
+        if isinstance(datafile, type(None)):
+            datafile = self.source
+
+        index = str(index)
+        data = pandas.DataFrame()
+        if 'fold_' + index + '/' + weightName in datafile:
+            data['gen_weight'] = np.array(datafile['fold_' + index + '/' + weightName])
+        if 'fold_' + index + '/targets' in datafile:
+            data['gen_target'] = np.array(datafile['fold_' + index + '/targets'])
+        if not isinstance(preds, type(None)):
+            data['pred_class'] = preds
+        return data
 
 class HEPAugBatch(BatchYielder):
     def __init__(self, header, datafile=None, inputPipe=None,
@@ -192,7 +207,7 @@ class HEPAugBatch(BatchYielder):
         if isinstance(self.inputPipe, type(None)):
             inputs = inputs[self.header].values
         else:
-            inputs = inputPipe.transform(inputs[self.header].values)
+            inputs = self.inputPipe.transform(inputs[self.header].values)
 
         return {'inputs':inputs,
                 'targets':targets,
