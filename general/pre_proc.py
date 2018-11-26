@@ -2,7 +2,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.decomposition import PCA
 
-def getPreProcPipes(normIn=False, normOut=False, pca=False, whiten=False, normPCA=False):
+def get_pre_proc_pipes(normIn=False, normOut=False, pca=False, whiten=False, normPCA=False):
     stepsIn = []
     if not normIn and not pca:
         stepsIn.append(('ident', StandardScaler(with_mean=False, with_std=False))) #For compatability
