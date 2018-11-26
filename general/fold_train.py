@@ -27,28 +27,16 @@ from .fold_yielder import FoldYielder
 
 '''
 Todo:
-- Change callbacks for nicer interface e.g. pass arguments in dictionary
-- Make it possible to annealMomentum without anealing LR
+- Make it possible to anneal Momentum without anealing LR
 - Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
-- Tidy code and move to PEP 8
 - Add docstrings and stuff
+- Pass abitrary metrics
 '''
 
-def get_batch(index, datafile):
-    print ("Depreciated, use to moving a FoldYielder class")
-    index = str(index)
-    weights = None
-    if 'fold_' + index + '/weights' in datafile:
-        weights = np.array(datafile['fold_' + index + '/weights'])
-    return {'inputs':np.array(datafile['fold_' + index + '/inputs']),
-            'targets':np.array(datafile['fold_' + index + '/targets']),
-            'weights':weights}
-
-def get_folds(n, n_splits):
+def get_train_folds(n, n_splits):
     train = [x for x in range(n_splits) if x != n]
     shuffle(train)
-    test = n
-    return train, test
+    return train
 
 def fold_lr_find(fold_yielder,
                 model_gen, model_gen_params,
@@ -172,7 +160,7 @@ def get_feature(feature, datafile, nFolds=-1, ravel=True, setFold=-1):
         return data.ravel()
     return data
 
-def fold_train_model(fold_yielder, n_splits,
+def fold_train_model(fold_yielder, n_models,
                       model_gen, model_gen_params, train_params, use_callbacks=[],
                       train_on_weights=True, patience=10, max_epochs=10000, 
                       plots=[], ams_size=0, saveloc=Path('train_weights/'),
@@ -207,25 +195,27 @@ def fold_train_model(fold_yielder, n_splits,
 
     if train_on_weights: print ("Training using weights")
 
-    for fold in range(n_splits):
-        foldStart = timeit.default_timer()
-        print ("Running fold", fold+1, "/", n_splits)
-        os.system("rm {saveloc}best.h5")
+    n_folds = fold_yielder.n_folds
+
+    for model_num, test_id in enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
+        model_start = timeit.default_timer()
+        print ("Training model", model_num+1, "/", n_models)
+        os.system(f"rm {saveloc}best.h5")
         best = -1
-        bestLR = -1
+        best_lr = -1
         redux_decay_active = False
         tmp_patience = patience
         epochCounter = 0
         sub_epoch = 0
         stop = False
         lossHistory = {'val_loss':[], 'swa_val_loss':[]}
-        trainID, testID = get_folds(fold, n_splits) #Get fold indeces for training and testing for current fold
+        train_ids = get_train_folds(test_id, n_folds) #Get fold indeces for training and testing for current fold
 
         model = None
         model = model_gen(**model_gen_params)
         model.reset_states #Just checking
         
-        testbatch = fold_yielder.get_batch(testID) #Load testing fold
+        testbatch = fold_yielder.get_batch(test_id) #Load testing fold
 
         callbacks = []
         cycling = False
@@ -276,8 +266,8 @@ def fold_train_model(fold_yielder, n_splits,
         use_swa = False
 
         for epoch in range(max_epochs):
-            for n in trainID: #Loop through training folds
-                trainbatch = fold_yielder.get_batch(n) #Load fold data
+            for train_id in train_ids: #Loop through training folds
+                trainbatch = fold_yielder.get_batch(train_id) #Load fold data
                 sub_epoch += 1
                 
                 if binary == None: #First run, check classification mode
@@ -342,9 +332,9 @@ def fold_train_model(fold_yielder, n_splits,
                     best = loss
                     if cycling:
                         if lr_cycler.lrs[-1] > 0:
-                            bestLR = lr_cycler.lrs[-1]
+                            best_lr = lr_cycler.lrs[-1]
                         else:
-                            bestLR = lr_cycler.lrs[-2]
+                            best_lr = lr_cycler.lrs[-2]
                     epochCounter = 0
                     if swa_start >= 0 and swa.active and use_swa:
                         swa.test_model.save_weights(saveloc/"best.h5")
@@ -366,10 +356,10 @@ def fold_train_model(fold_yielder, n_splits,
 
                 if epochCounter >= tmp_patience: #Early stopping
                     if cycling and redux_decay and not redux_decay_active:
-                        print ('CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(sub_epoch, bestLR))
+                        print ('CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(sub_epoch, best_lr))
                         model.load_weights(saveloc/"best.h5")
-                        lr_cycler.lrs.append(bestLR)
-                        K.set_value(model.optimizer.lr, bestLR)
+                        lr_cycler.lrs.append(best_lr)
+                        K.set_value(model.optimizer.lr, best_lr)
                         tmp_patience = 10
                         epochCounter = 0
                         callbacks = []
@@ -393,7 +383,7 @@ def fold_train_model(fold_yielder, n_splits,
         results.append({})
         results[-1]['loss'] = best
         if binary:
-            testbatch = fold_yielder.get_batch(testID) #Load testing fold
+            testbatch = fold_yielder.get_batch(test_id) #Load testing fold
             prediction = model.predict(testbatch['inputs'], verbose=0)
             if not isinstance(testbatch['weights'], type(None)):
                 results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
@@ -402,15 +392,15 @@ def fold_train_model(fold_yielder, n_splits,
             results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'], prediction)
 
             if ams_size:
-                 results[-1]['AMS'], results[-1]['cut'] = ams_scan_quick(fold_yielder.getBatchDF(testID, preds=prediction, weightName='orig_weights'), wFactor=ams_size/len(prediction))
+                 results[-1]['AMS'], results[-1]['cut'] = ams_scan_quick(fold_yielder.getBatchDF(test_id, preds=prediction, weightName='orig_weights'), wFactor=ams_size/len(prediction))
         print ("Score is:", results[-1])
 
         if 'lr' in plots: lr_cycler.plot()
         if 'mom' in plots: mom_cycler.plot()
 
-        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
+        print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
-        model.save(saveloc +  'train_' + str(fold) + '.h5')
+        model.save(saveloc +  'train_' + str(model_num) + '.h5')
         with open(saveloc +  'resultsFile.pkl', 'wb') as fout: #Save results
             pickle.dump(results, fout)
 
