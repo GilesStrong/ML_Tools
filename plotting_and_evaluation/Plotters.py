@@ -10,10 +10,10 @@ import numpy as np
 import pandas
 import types
 
-from ML_Tools.General.Misc_Functions import uncertRound
-from ML_Tools.Plotting_And_Evaluation.Bootstrap import * 
+from ml_tools.general.misc_functions import uncert_round
+from ml_tools.plotting_and_evaluation.bootstrap import * 
 
-def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}, moments=False):
+def plot_feat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}, moments=False):
     loop = False
     if not isinstance(cuts, type(None)):
         if isinstance(cuts, list):
@@ -91,7 +91,7 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
     plt.xlabel(feat, fontsize=24, color='black')
     plt.show()
 
-def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
+def roc_plot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
     buildCurves = True
     if isinstance(inData, type(None)) == isinstance(curves, type(None)):
         print ("Must pass either targets and preds, or curves")
@@ -107,7 +107,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
                 aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
                 if not isinstance(weightName, type(None)):
                     aucArgs[-1]['weights'] = inData[i][weightName]
-            aucs = mpRun(aucArgs, rocauc)
+            aucs = mp_run(aucArgs, rocauc)
             meanScores = {}
             for i in labels:
                 meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
@@ -130,7 +130,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
     for i in range(len(curves)):
         if buildCurves:
             if bootstrap:
-                meanScore = uncertRound(*meanScores[labels[i]])
+                meanScore = uncert_round(*meanScores[labels[i]])
                 plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={}\pm{}$'.format(meanScore[0], meanScore[1]), **params[i])
             else:
                 plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={:.5f}$'.format(meanScores[labels[i]]), **params[i])
@@ -150,7 +150,7 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
     plt.yticks(fontsize=16, color='black')
     plt.show()
 
-def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_class', weightName=None,
+def get_class_pred_plot(inData, labels=['Background', 'Signal'], predName='pred_class', weightName=None,
                      lim=(0,1), logy=True, params={'hist' : True, 'kde' : False, 'norm_hist' : True}):
     plt.figure(figsize=(16, 8))
     for i in range(len(inData)):
@@ -169,12 +169,12 @@ def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_cla
     plt.yticks(fontsize=16, color='black')
     plt.show() 
 
-def _getSamples(inData, sampleName, weightName):
+def _get_samples(inData, sampleName, weightName):
     samples = set(inData[sampleName])
     weights=[np.sum(inData[inData[sampleName] == sample][weightName]) for sample in samples]
     return [x[0] for x in np.array(sorted(zip(samples, weights), key=lambda x: x[1]))] #Todo improve sorting
 
-def getSamplePredPlot(inData, 
+def get_sample_pred_plot(inData, 
                       targetName='gen_target', sampleName='gen_sample', predName='pred_class', weightName='gen_weight',
                       lim=(0,1), nBins = 35, logy=True, pallet='magma', desat=1,
                       hist_params={'normed': True, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
@@ -189,12 +189,12 @@ def getSamplePredPlot(inData,
     
     with sns.color_palette(pallet, len(set(inData[sampleName])), desat=desat):
         
-        samples = _getSamples(inData[bkg], sampleName, weightName)
+        samples = _get_samples(inData[bkg], sampleName, weightName)
         plt.hist([inData[inData[sampleName] == sample][predName] for sample in samples],
                  weights=[inData[inData[sampleName] == sample][weightName] for sample in samples],
                  label=samples, **hist_params)
 
-        samples = _getSamples(inData[sig], sampleName, weightName)
+        samples = _get_samples(inData[sig], sampleName, weightName)
         for sample in samples:
             plt.hist(inData[inData[sampleName] == sample][predName],
                      weights=inData[inData[sampleName] == sample][weightName],
@@ -212,13 +212,9 @@ def getSamplePredPlot(inData,
             plt.grid(True, which="both")
         plt.xticks(fontsize=16, color='black')
         plt.yticks(fontsize=16, color='black')
-        plt.show()      
-
-def plotHistory(histories):
-    print ("Depreciated, move to plotTrainingHistory")
-    plotTrainingHistory(histories)
+        plt.show()
     
-def plotTrainingHistory(histories, save=False):
+def plot_training_history(histories, save=False):
     plt.figure(figsize=(16,8))
     for i, history in enumerate(histories):
         if i == 0:
@@ -265,7 +261,7 @@ def plotTrainingHistory(histories, save=False):
     if save:
         plt.savefig(save)
 
-def getModelHistoryComparisonPlot(histories, names, cv=False, logY=False):
+def get_model_history_comparison_plot(histories, names, cv=False, logY=False):
     '''Compare validation loss evolution for several models
     cv=True expects history for CV training and plots mean and 68% CI bands'''
     plt.figure(figsize=(16,8))
@@ -286,7 +282,7 @@ def getModelHistoryComparisonPlot(histories, names, cv=False, logY=False):
         plt.grid(True, which="both")
     plt.show()
 
-def getLRFinderComparisonPlot(lrFinders, names, logX=True, logY=True, loss='loss', cut=-10):
+def get_lr_finder_comparison_plot(lrFinders, names, logX=True, logY=True, loss='loss', cut=-10):
     '''Compare loss evolultion against learning rate for several LRFinder callbacks'''
     plt.figure(figsize=(16,8))
     
@@ -306,7 +302,7 @@ def getLRFinderComparisonPlot(lrFinders, names, logX=True, logY=True, loss='loss
     plt.ylabel("Loss", fontsize=24, color='black')
     plt.show()
 
-def getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10):
+def get_lr_finder_mean_plot(lrFinders, loss='loss', cut=-10):
     '''Get mean loss evolultion against learning rate for several LRFinder callbacks'''
     plt.figure(figsize=(16,8))
     minLen = np.min([len(lrFinders[x].history[loss][:cut]) for x in range(len(lrFinders))])
@@ -323,7 +319,7 @@ def getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10):
     plt.ylabel("Loss", fontsize=24, color='black')
     plt.show()
 
-def getMonitorComparisonPlot(monitors, names, xAxis='iter', yAxis='Loss', lrLogX=True, logY=True):
+def get_monitor_comparison_plot(monitors, names, xAxis='iter', yAxis='Loss', lrLogX=True, logY=True):
     '''Compare validation loss.accuracy evolution for several models on a per iteration/learning-rate/momentum basis'''
     plt.figure(figsize=(16,8))
     for monitor, name in zip(monitors, names):

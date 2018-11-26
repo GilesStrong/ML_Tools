@@ -14,10 +14,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 sns.set_style("white")
 
-from ML_Tools.General.PreProc import getPreProcPipes
+from ml_tools.general.pre_proc import get_pre_proc_pipes
 
-def rankClassifierFeatures(data, trainFeatures, nSplits=10, nJobs=4, weights=None, target='gen_target', datatype='float32'):
-    inputPipe, outputPipe = getPreProcPipes(normIn=True)
+def rank_classifier_features(data, trainFeatures, nSplits=10, nJobs=4, weights=None, target='gen_target', datatype='float32'):
+    inputPipe, _ = get_pre_proc_pipes(normIn=True)
     inputPipe.fit(data[trainFeatures].values.astype(datatype))
     X = inputPipe.transform(data[trainFeatures].values.astype(datatype))
     y = data[target].values.astype('int')
@@ -67,7 +67,7 @@ def rankClassifierFeatures(data, trainFeatures, nSplits=10, nJobs=4, weights=Non
 
     return [x[0] for x in importance], [x[1] for x in importance]
 
-def getCorrMat(data0, data1 = None):
+def get_corr_mat(data0, data1 = None):
     corr = data0.corr()
     
     if not isinstance(data1, type(None)): #Plot difference in correlations
@@ -78,7 +78,7 @@ def getCorrMat(data0, data1 = None):
     sns.heatmap(corr, cmap=cmap, vmax=1, center=0,
                 square=True, linewidths=.5, cbar_kws={"shrink": .5})
 
-def xgCompare(datasets, targets):
+def xgb_compare(datasets, targets):
     for i in range(len(datasets)):
         X_train, X_test, y_train, y_test = train_test_split(datasets[i], targets[i])
         

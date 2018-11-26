@@ -52,7 +52,7 @@ def rocauc(args, out_q):
     outdict[args['name']] = boot
     out_q.put(outdict)
 
-def mpRun(args, target=bootstrap):
+def mp_run(args, target=bootstrap):
     procs = []
     out_q = mp.Queue()
     for i in range(len(args)):

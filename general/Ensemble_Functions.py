@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-import pandas
+import pandas as pd
 import math
 import json
 import os
@@ -14,7 +14,7 @@ from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
-def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
+def ensemble_predict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
     if isinstance(inData, np.ndarray):
         pred = np.zeros((len(inData), nOut)) #Purely continuous
     else:
@@ -38,7 +38,7 @@ def ensemblePredict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #
         pred += weights[i] * tempPred
     return pred
 
-def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_weights/train_'): 
+def load_trained_model(cycle, compileArgs, mva='NN', loadMode='model', location='train_weights/train_'): 
     cycle = int(cycle)
     model = None
     if mva == 'NN':
@@ -55,7 +55,7 @@ def loadModel(cycle, compileArgs, mva='NN', loadMode='model', location='train_we
             model = pickle.load(fin)
     return model
 
-def getWeights(value, metric, weighting='reciprocal'):
+def get_weights(value, metric, weighting='reciprocal'):
     if weighting == 'reciprocal':
         return 1/value
     if weighting == 'uniform':
@@ -64,7 +64,7 @@ def getWeights(value, metric, weighting='reciprocal'):
         print ("No other weighting currently supported")
     return None
 
-def assembleEnsemble(results, size, metric, compileArgs=None, weighting='reciprocal', mva='NN', loadMode='model', location='train_weights/train_'):
+def assemble_ensemble(results, size, metric, compileArgs=None, weighting='reciprocal', mva='NN', loadMode='model', location='train_weights/train_'):
     ensemble = []
     weights = []
     print ("Choosing ensemble by", metric)
@@ -72,14 +72,14 @@ def assembleEnsemble(results, size, metric, compileArgs=None, weighting='recipro
     values = np.sort(np.array([(i, result[metric]) for i, result in enumerate(results)], dtype=dtype),
                      order=['result'])
     for i in range(min([size, len(results)])):
-        ensemble.append(loadModel(values[i]['cycle'], compileArgs, mva, loadMode, location))
-        weights.append(getWeights(values[i]['result'], metric, weighting))
+        ensemble.append(load_trained_model(values[i]['cycle'], compileArgs, mva, loadMode, location))
+        weights.append(get_weights(values[i]['result'], metric, weighting))
         print ("Model", i, "is", values[i]['cycle'], "with", metric, "=", values[i]['result'])
     weights = np.array(weights)
     weights = weights/weights.sum() #normalise weights
     return ensemble, weights
 
-def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inputPipe=None, outputPipe=None, saveMode='model'): #Todo add saving of input feature names
+def save_ensemble(name, ensemble, weights, compileArgs=None, overwrite=False, inputPipe=None, outputPipe=None, saveMode='model'): #Todo add saving of input feature names
     if (len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.h5")) or len(glob.glob(name + "*.pkl"))) and not overwrite:
         print ("Ensemble already exists with that name, call with overwrite=True to force save")
     else:
@@ -117,7 +117,7 @@ def saveEnsemble(name, ensemble, weights, compileArgs=None, overwrite=False, inp
             with open(name + '_outputPipe.pkl', 'wb') as fout:
                 pickle.dump(outputPipe, fout)
 
-def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='model'): #Todo add loading of input feature names
+def load_ensemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='model'): #Todo add loading of input feature names
     ensemble = []
     weights = None
     inputPipe = None
@@ -149,8 +149,8 @@ def loadEnsemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fals
             outputPipe = pickle.load(fin)
     return ensemble, weights, compileArgs, inputPipe, outputPipe
 
-def testEnsembleAUC(X, y, ensemble, weights, size=10):
+def test_ensemble_auc(X, y, ensemble, weights, size=10):
     for i in range(size):
-        pred = ensemblePredict(X, ensemble, weights, n=i+1)
+        pred = ensemble_predict(X, ensemble, weights, n=i+1)
         auc = roc_auc_score(y, pred)
         print ('Ensemble with {} classifiers, AUC = {:2f}'.format(i+1, auc))

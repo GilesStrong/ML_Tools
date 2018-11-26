@@ -149,7 +149,7 @@ class LRFinder(Callback):
 
 class LinearCLR(Callback):
     '''Cyclical learning rate callback with linear interpolation'''
-    def __init__(self, nb, maxLR, minLR, scale=2, reverse=False, plotLR=False):
+    def __init__(self, nb, maxLR, minLR, scale=2, reverse=False):
         super(LinearCLR, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
@@ -159,16 +159,11 @@ class LinearCLR(Callback):
         self.minLR = minLR
         self.reverse = reverse
         self.cycle_end = False
-        self.plotLR = plotLR
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
-
-    def on_train_end(self, logs={}):
-        if self.plotLR:
-            self.plot_lr()
         
-    def plot_lr(self):
+    def plot(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("learning rate", fontsize=24, color='black')
@@ -193,10 +188,10 @@ class LinearCLR(Callback):
         self.lrs.append(lr)
         K.set_value(self.model.optimizer.lr, lr)
 
-class CosAnneal(Callback):
+class CosAnnealLR(Callback):
     '''Adapted from fastai version'''
     def __init__(self, nb, cycle_mult=1, reverse=False):
-        super(CosAnneal, self).__init__()
+        super(CosAnnealLR, self).__init__()
         self.nb = nb
         self.cycle_mult = cycle_mult
         self.cycle_iter = 0
@@ -211,7 +206,7 @@ class CosAnneal(Callback):
             self.lr = float(K.get_value(self.model.optimizer.lr))
         self.cycle_end = False
         
-    def plot_lr(self):
+    def plot_(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations")
         plt.ylabel("learning rate")
@@ -242,7 +237,7 @@ class CosAnneal(Callback):
 
 class LinearCMom(Callback):
     '''Cyclical momentum callback with linear interpolation'''
-    def __init__(self, nb, maxMom, minMom, scale=2, reverse=False, plotMom=False, mode='sgd'):
+    def __init__(self, nb, maxMom, minMom, scale=2, reverse=False, mode='sgd'):
         super(LinearCMom, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
@@ -252,17 +247,12 @@ class LinearCMom(Callback):
         self.minMom = minMom
         self.reverse = reverse
         self.cycle_end = False
-        self.plotMom = plotMom
         self.mode = mode
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
-
-    def on_train_end(self, logs={}):
-        if self.plotMom:
-            self.plot_mom()
         
-    def plot_mom(self):
+    def plot(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("momentum", fontsize=24, color='black')
@@ -307,7 +297,7 @@ class CosAnnealMomentum(Callback):
             self.momentum = float(K.get_value(self.model.optimizer.momentum))
         self.cycle_end = False
         
-    def plot_momentum(self):
+    def plot(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations")
         plt.ylabel("momentum")
@@ -333,7 +323,7 @@ class CosAnnealMomentum(Callback):
         K.set_value(self.model.optimizer.momentum, momentum)
 
 class OneCycle(Callback):
-    def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lrScale=10, momScale=0.1, mode='sgd'):
+    def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lrScale=10, momScale=0.1, mode='adam'):
         '''nb=number of minibatches per epoch, ratio=fraction of epoch spent in first stage,
            lrScale=number used to divide initial LR to get minimum LR,
            momScale=number to subtract from initial momentum to get minimum momentum'''
@@ -395,7 +385,7 @@ class OneCycle(Callback):
         self.cycle_end = False
         
     def plot(self):
-        fig, axs = plt.subplots(2,1,figsize=(16,4))
+        _, axs = plt.subplots(2,1,figsize=(16,4))
         for ax in axs:
             ax.set_xlabel("Iterations")
         axs[0].set_ylabel("Learning Rate")
@@ -430,24 +420,24 @@ class OneCycle(Callback):
 
 class SWA(Callback):
     '''Modified from fastai version'''
-    def __init__(self, swa_start, testBatch, testModel, verbose=False, swaRenewal=-1,
-                 clrCallback=None, trainOnWeights=False, sgdReplacement=False):
+    def __init__(self, start, test_batch, test_model, verbose=False, renewal=-1,
+                 clr_callback=None, train_on_weights=False, replace=False):
         super(SWA, self).__init__()
         self.swa_model = None
         self.swa_model_new = None
-        self.swa_start = swa_start
+        self.start = start
         self.epoch = -1
         self.swa_n = -1
-        self.swaRenewal = swaRenewal
+        self.renewal = renewal
         self.n_since_renewal = -1
         self.losses = {'swa':None, 'base':None}
         self.active = False
-        self.testBatch = testBatch
-        self.weighted = trainOnWeights
-        self.clrCallback = clrCallback
-        self.test_model = testModel
+        self.test_batch = test_batch
+        self.weighted = train_on_weights
+        self.clr_callback = clr_callback
+        self.test_model = test_model
         self.verbose = verbose
-        self.sgdReplacement = sgdReplacement
+        self.replace = replace
         
     def on_train_begin(self, logs={}):
         if isinstance(self.swa_model, type(None)):
@@ -463,26 +453,26 @@ class SWA(Callback):
         self.losses = {'swa':None, 'base':None}
 
     def on_epoch_end(self, metrics, logs={}):
-        if (self.epoch + 1) >= self.swa_start and (isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end):
+        if (self.epoch + 1) >= self.start and (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end):
             if self.swa_n == 0 and not self.active:
                 print ("SWA beginning")
                 self.active = True
-            elif not isinstance(self.clrCallback, type(None)) and self.clrCallback.cycle_mult > 1:
+            elif not isinstance(self.clr_callback, type(None)) and self.clr_callback.cycle_mult > 1:
                 print ("Updating average")
                 self.active = True
             self.update_average_model()
             self.swa_n += 1
             
-            if self.swa_n > self.swaRenewal:
+            if self.swa_n > self.renewal:
                 self.first_completed = True
                 self.n_since_renewal += 1
-                if self.n_since_renewal > self.cylcle_since_replacement*self.swaRenewal and self.swaRenewal > 0:
+                if self.n_since_renewal > self.cylcle_since_replacement*self.renewal and self.renewal > 0:
                     self.compareAverages()
             
-        if isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end:
+        if isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end:
             self.epoch += 1
 
-        if self.active and not (isinstance(self.clrCallback, type(None)) or self.clrCallback.cycle_end or self.clrCallback.cycle_mult == 1):
+        if self.active and not (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end or self.clr_callback.cycle_mult == 1):
             self.active = False
             
     def update_average_model(self):
@@ -493,7 +483,7 @@ class SWA(Callback):
             swa_param += model_param
             swa_param /= (self.swa_n + 1)
         
-        if self.swa_n > self.swaRenewal and self.first_completed:
+        if self.swa_n > self.renewal and self.first_completed:
             print("new model is {} epochs old".format(self.n_since_renewal))
             for model_param, swa_param in zip(self.model.get_weights(), self.swa_model_new):
                 swa_param *= self.n_since_renewal
@@ -504,27 +494,27 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
-                self.losses['swa'] = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], sample_weight=self.testBatch['weights'], verbose=0)
+                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
-                self.losses['swa'] = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], verbose=0)
+                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
         
         self.test_model.set_weights(self.swa_model_new)
         if self.weighted:
-            new_loss = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], sample_weight=self.testBatch['weights'], verbose=0)
+            new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
         else:
-            new_loss = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], verbose=0)
+            new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
         
         print("Checking renewal swa model, current model: {}, new model: {}".format(self.losses['swa'], new_loss))
         if new_loss < self.losses['swa']:
             print("New model better, replacing\n____________________\n\n")
             self.losses['swa'] = new_loss
             self.swa_n = self.n_since_renewal
-            if self.sgdReplacement:
+            if self.replace:
                 if isinstance(self.losses['base'], type(None)):
                     if self.weighted:
-                        self.losses['base'] = self.model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], sample_weight=self.testBatch['weights'], verbose=0)
+                        self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
                     else:
-                        self.losses['base'] = self.model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], verbose=0)
+                        self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
                 if self.losses['base'] > new_loss:
                     print("Old average better than current point, starting SGD from old average")
                     self.model.set_weights(self.swa_model)
@@ -550,14 +540,14 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
-                self.losses['swa'] = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], sample_weight=self.testBatch['weights'], verbose=0)
+                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
-                self.losses['swa'] = self.test_model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], verbose=0)
+                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
         
         if isinstance(self.losses['base'], type(None)):
             if self.weighted:
-                self.losses['base'] = self.model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], sample_weight=self.testBatch['weights'], verbose=0)
+                self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
-                self.losses['base'] = self.model.evaluate(self.testBatch['inputs'], self.testBatch['targets'], verbose=0)
+                self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
         
         return self.losses

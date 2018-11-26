@@ -15,11 +15,11 @@ import types
 import numpy as np
 import os
 
-from ML_Tools.General.Callbacks import *
-from ML_Tools.General.Misc_Functions import uncertRound
-from ML_Tools.Plotting_And_Evaluation.Plotters import plotTrainingHistory
+from ml_tools.general.callbacks import *
+from ml_tools.general.misc_functions import uncert_round
+from ml_tools.plotting_and_evaluation.plotters import plot_training_history
 
-def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
+def train_classifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):
     start = timeit.default_timer()
     results = []
@@ -56,7 +56,7 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
         saveBest = ModelCheckpoint(saveLoc +  "best.h5", monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True, mode='auto', period=1)
         
         weights=None
-        if not isinstance(sampleWeights, types.NoneType):
+        if not isinstance(sampleWeights, type(None)):
             weights = sampleWeights[train]
         
         model.fit(X[train], y[train],
@@ -81,12 +81,12 @@ def trainClassifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    plotTrainingHistory(histories, saveLoc + 'history.png')
+    plot_training_history(histories, saveLoc + 'history.png')
 
-    meanLoss = uncertRound(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
+    meanLoss = uncert_round(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
     print ("Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1]))
     if binary:
-        meanAUC = uncertRound(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
+        meanAUC = uncert_round(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
         print ("Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1]))
     print("______________________________________\n")
 
