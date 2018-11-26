@@ -12,7 +12,7 @@ from sklearn.pipeline import Pipeline
 
 from keras.models import Sequential
 
-from ml_tools.general.ensemble_functions import *
+from ..general.ensemble_functions import *
 
 class Classifier():
     def __init__(self, name, features, inputPipeLoad=True):

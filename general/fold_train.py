@@ -18,12 +18,12 @@ from random import shuffle
 import sys
 from pathlib import Path
 
-from ml_tools.general.Misc_Functions import uncert_round
-from ml_tools.plotting_and_evaluation.plotters import *
-from ml_tools.general.ensemble_functions import *
-from ml_tools.general.callbacks import *
-from ml_tools.general.metrics import *
-from ml_tools.general.fold_yielder import FoldYielder
+from .misc_functions import uncert_round
+from ..plotting_and_evaluation.plotters import *
+from .ensemble_functions import *
+from .callbacks import *
+from .metrics import *
+from .fold_yielder import FoldYielder
 
 '''
 Todo:

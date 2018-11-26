@@ -10,8 +10,8 @@ import numpy as np
 import pandas
 import types
 
-from ml_tools.general.misc_functions import uncert_round
-from ml_tools.plotting_and_evaluation.bootstrap import * 
+from ..general.misc_functions import uncert_round
+from ..plotting_and_evaluation.bootstrap import * 
 
 def plot_feat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}, moments=False):
     loop = False
