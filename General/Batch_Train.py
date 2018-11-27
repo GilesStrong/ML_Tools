@@ -47,8 +47,7 @@ def getBatch(index, datafile):
 def getFolds(n, nSplits):
     train = [x for x in range(nSplits) if x != n]
     #shuffle(train)
-    test = n
-    return train, test
+    return train
 
 def batchLRFind(batchYielder,
                 modelGen, modelGenParams,
@@ -218,9 +217,9 @@ def batchTrainModel(batchYielder, n_models,
     n_folds = batchYielder.nFolds
     nb = math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size'])
 
-    for fold in [4]:# range(n_models):
-        foldStart = timeit.default_timer()
-        print ("Running fold", fold+1, "/", n_models)
+    for model_num, test_id in enumerate([4]):#enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
+        model_start = timeit.default_timer()
+        print ("Running fold", model_num+1, "/", n_models)
         os.system(f"rm {saveloc}/best.h5")
         best = -1
         bestLR = -1
@@ -230,13 +229,13 @@ def batchTrainModel(batchYielder, n_models,
         subEpoch = 0
         stop = False
         lossHistory = {'val_loss':[], 'swa_val_loss':[]}
-        trainID, testID = getFolds(fold, n_folds) #Get fold indeces for training and testing for current fold
+        trainID = getFolds(test_id, n_folds) #Get fold indeces for training and testing for current fold
 
         model = None
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
         
-        testbatch = batchYielder.getBatch(testID) #Load testing fold
+        testbatch = batchYielder.getBatch(test_id) #Load testing fold
 
         callbacks = []
         cycling = False
@@ -379,7 +378,7 @@ def batchTrainModel(batchYielder, n_models,
                         K.set_value(model.optimizer.lr, lr)
 
                 if epochCounter >= tmpPatience: #Early stopping
-                    if cycling and use_callbacks['CosAnnealLR']['redux_decay'] and not reduxDecayActive:
+                    if cycling and redux_decay and not reduxDecayActive:
                         print ('CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(subEpoch, bestLR))
                         model.load_weights(saveloc/"best.h5")
                         lr_cycler.lrs.append(bestLR)
@@ -407,7 +406,7 @@ def batchTrainModel(batchYielder, n_models,
         results.append({})
         results[-1]['loss'] = best
         if binary:
-            testbatch = batchYielder.getBatch(testID) #Load testing fold
+            testbatch = batchYielder.getBatch(test_id) #Load testing fold
             prediction = model.predict(testbatch['inputs'], verbose=0)
             if not isinstance(testbatch['weights'], type(None)):
                 results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
@@ -416,16 +415,16 @@ def batchTrainModel(batchYielder, n_models,
             results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'], prediction)
 
             if ams_args['n_total'] > 0:
-                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getTestDF(testID, preds=prediction, weightName='orig_weights'), wFactor=ams_args['n_total']/len(prediction), br=ams_args['br'], deltaB=ams_args['deltaB'])
+                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getTestDF(test_id, preds=prediction, weightName='orig_weights'), wFactor=ams_args['n_total']/len(prediction), br=ams_args['br'], deltaB=ams_args['deltaB'])
         
         print ("Score is:", results[-1])
 
         if 'lr' in plots: lr_cycler.plot_lr()
         if 'mom' in plots: mom_cycler.plot_momentum()
 
-        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
+        print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
-        model.save(str(saveloc/('train_' + str(fold) + '.h5')))
+        model.save(str(saveloc/('train_' + str(model_num) + '.h5')))
         with open(saveloc/'resultsFile.pkl', 'wb') as fout: #Save results
             pickle.dump(results, fout)
 
@@ -442,4 +441,3 @@ def batchTrainModel(batchYielder, n_models,
         sys.stdout = old_stdout
         log_file.close()
     return results, histories
-    
