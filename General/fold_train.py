@@ -23,7 +23,7 @@ from ..plotting_and_evaluation.Plotters import *
 from .Ensemble_Functions import *
 from .Callbacks import *
 from .Metrics import *
-from .BatchYielder import BatchYielder
+from .fold_yielder import FoldYielder
 
 '''
 Todo:
@@ -34,8 +34,8 @@ Todo:
 - Add docstrings and stuff
 '''
 
-def getBatch(index, datafile):
-    print ("Depreciated, use to moving a BatchYielder class")
+def getFold(index, datafile):
+    print ("Depreciated, use to moving a FoldYielder class")
     index = str(index)
     weights = None
     if 'fold_' + index + '/weights' in datafile:
@@ -49,7 +49,7 @@ def getFolds(n, nSplits):
     #shuffle(train)
     return train
 
-def batchLRFind(batchYielder,
+def foldLRFind(fold_yielder,
                 modelGen, modelGenParams,
                 trainParams, trainOnWeights=True,
                 lrBounds=[1e-5, 10], verbose=False, nFolds=-1):
@@ -57,12 +57,12 @@ def batchLRFind(batchYielder,
     start = timeit.default_timer()
     binary = None
     
-    if not isinstance(batchYielder, BatchYielder):
-        print ("HDF5 as input is depreciated, converting to BatchYielder")
-        batchYielder = BatchYielder(batchYielder)
+    if not isinstance(fold_yielder, FoldYielder):
+        print ("HDF5 as input is depreciated, converting to FoldYielder")
+        fold_yielder = FoldYielder(fold_yielder)
     
     if nFolds < 1:
-        indeces = range(batchYielder.nFolds)
+        indeces = range(fold_yielder.nFolds)
     else:
         indeces = range(nFolds)
     
@@ -72,8 +72,8 @@ def batchLRFind(batchYielder,
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
     
-        trainbatch = batchYielder.getBatch(np.random.choice(range(batchYielder.nFolds))) #Load fold
-        nSteps = math.ceil(len(trainbatch['targets'])/trainParams['batch_size'])
+        trainfold = fold_yielder.getFold(np.random.choice(range(fold_yielder.nFolds))) #Load fold
+        nSteps = math.ceil(len(trainfold['targets'])/trainParams['batch_size'])
         if verbose: print ("Using {} steps".format(nSteps))   
 
         lrFinder = LRFinder(nSteps=nSteps, lrBounds=lrBounds, verbose=verbose)
@@ -81,21 +81,21 @@ def batchLRFind(batchYielder,
         if 'class' in modelGenParams['mode'].lower():
             if binary == None: #Check classification mode
                 binary = True
-                nClasses = len(np.unique(trainbatch['targets']))
+                nClasses = len(np.unique(trainfold['targets']))
                 if nClasses > 2:
                     print (nClasses, "classes found, running in multiclass mode\n")
-                    trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
+                    trainfold['targets'] = utils.to_categorical(trainfold['targets'], num_classes=nClasses)
                     binary = False
                 else:
                     print (nClasses, "classes found, running in binary mode\n")
 
         if trainOnWeights:
-            model.fit(trainbatch['inputs'], trainbatch['targets'],
-                      sample_weight=trainbatch['weights'],
+            model.fit(trainfold['inputs'], trainfold['targets'],
+                      sample_weight=trainfold['weights'],
                       callbacks = [lrFinder], **trainParams) #Train for one epoch
 
         else:
-            model.fit(trainbatch['inputs'], trainbatch['targets'],
+            model.fit(trainfold['inputs'], trainfold['targets'],
                       class_weight = 'auto',callbacks = [lrFinder], **trainParams) #Train for one epoch
         
         lrFinders.append(lrFinder)
@@ -112,49 +112,49 @@ def batchLRFind(batchYielder,
         
     return lrFinders
 
-def saveBatchPred(batchPred, fold, datafile, predName='pred'):
+def saveFoldPred(foldPred, fold, datafile, predName='pred'):
     try:
-        datafile.create_dataset(fold + "/" + predName, shape=batchPred.shape, dtype='float32')
+        datafile.create_dataset(fold + "/" + predName, shape=foldPred.shape, dtype='float32')
     except RuntimeError:
         pass
     
     pred = datafile[fold + "/" + predName]
-    pred[...] = batchPred
+    pred[...] = foldPred
         
-def batchEnsemblePredict(ensemble, weights, batchYielder, predName='pred', nOut=1, outputPipe=None, ensembleSize=None, nFolds=-1, verbose=False):
+def foldEnsemblePredict(ensemble, weights, fold_yielder, predName='pred', nOut=1, outputPipe=None, ensembleSize=None, nFolds=-1, verbose=False):
     if isinstance(ensembleSize, type(None)):
         ensembleSize = len(ensemble)
 
-    if not isinstance(batchYielder, BatchYielder):
-        print ("Passing HDF5 as input is depreciated, converting to BatchYielder")
-        batchYielder = BatchYielder(batchYielder)
+    if not isinstance(fold_yielder, FoldYielder):
+        print ("Passing HDF5 as input is depreciated, converting to FoldYielder")
+        fold_yielder = FoldYielder(fold_yielder)
 
     if nFolds < 0:
-        nFolds = len(batchYielder.source)
+        nFolds = len(fold_yielder.source)
 
-    for fold in range(nFolds):
+    for fold_id in range(nFolds):
         if verbose:
-            print ('Predicting batch {} out of {}'.format(fold+1, nFolds))
+            print ('Predicting fold {} out of {}'.format(fold_id+1, nFolds))
             start = timeit.default_timer()
 
-        if not batchYielder.testTimeAug:
-            batch = batchYielder.getBatch(fold)['inputs']
-            batchPred = ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe)
+        if not fold_yielder.testTimeAug:
+            fold = fold_yielder.getFold(fold_id)['inputs']
+            foldPred = ensemblePredict(fold, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe)
 
         else:
             tmpPred = []
-            for aug in range(batchYielder.augMult): #Multithread this?
-                batch = batchYielder.getTestBatch(fold, aug)['inputs']
-                tmpPred.append(ensemblePredict(batch, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe))
-            batchPred = np.mean(tmpPred, axis=0)
+            for aug in range(fold_yielder.augMult): #Multithread this?
+                fold = fold_yielder.getTestFold(fold_id, aug)['inputs']
+                tmpPred.append(ensemblePredict(fold, ensemble, weights, n=ensembleSize, nOut=nOut, outputPipe=outputPipe))
+            foldPred = np.mean(tmpPred, axis=0)
 
         if verbose: 
-            print ("Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(batch)))
+            print ("Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(fold)))
 
         if nOut > 1:
-            saveBatchPred(batchPred, 'fold_' + str(fold), batchYielder.source, predName=predName)
+            saveFoldPred(foldPred, 'fold_' + str(fold_id), fold_yielder.source, predName=predName)
         else:
-            saveBatchPred(batchPred[:,0], 'fold_' + str(fold), batchYielder.source, predName=predName)
+            saveFoldPred(foldPred[:,0], 'fold_' + str(fold_id), fold_yielder.source, predName=predName)
         
 def getFeature(feature, datafile, nFolds=-1, ravel=True, setFold=-1):
     if setFold < 0:
@@ -171,17 +171,7 @@ def getFeature(feature, datafile, nFolds=-1, ravel=True, setFold=-1):
         return data.ravel()
     return data
 
-def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainParams,
-                         cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
-                         annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
-                         oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=0.1, plotOneCycle=False, scale=30, mode='sgd',
-                         swaStart=-1, swaRenewal=-1, sgdReplacement=False,
-                         trainOnWeights=True,
-                         saveLoc='train_weights/', patience=10, maxEpochs=10000,
-                         verbose=False, logoutput=False, amsSize=0, plot=True):
-    print("Depreciated, move to using batchTrainModel")
-
-def batchTrainModel(batchYielder, n_models,
+def foldTrainModel(fold_yielder, n_models,
                     modelGen, modelGenParams, trainParams, 
                     use_callbacks={},
                     trainOnWeights=True, patience=10, maxEpochs=10000,
@@ -208,14 +198,14 @@ def batchTrainModel(batchYielder, n_models,
     else:
         binary = False
 
-    if not isinstance(batchYielder, BatchYielder):
-        print ("HDF5 as input is depreciated, converting to BatchYielder")
-        batchYielder = BatchYielder(batchYielder)
+    if not isinstance(fold_yielder, FoldYielder):
+        print ("HDF5 as input is depreciated, converting to FoldYielder")
+        fold_yielder = FoldYielder(fold_yielder)
 
     if trainOnWeights: print ("Training using weights")
     
-    n_folds = batchYielder.nFolds
-    nb = math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size'])
+    n_folds = fold_yielder.nFolds
+    nb = math.ceil(len(fold_yielder.source['fold_0/targets'])/trainParams['batch_size'])
 
     for model_num, test_id in enumerate([4]):#enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
         model_start = timeit.default_timer()
@@ -235,7 +225,7 @@ def batchTrainModel(batchYielder, n_models,
         model = modelGen(**modelGenParams)
         model.reset_states #Just checking
         
-        testbatch = batchYielder.getBatch(test_id) #Load testing fold
+        testfold = fold_yielder.getFold(test_id) #Load testing fold
 
         callbacks = []
         cycling = False
@@ -278,10 +268,10 @@ def batchTrainModel(batchYielder, n_models,
             if 'SWA' in use_callbacks:
                 swa_start = use_callbacks['SWA']['start']
                 if cycling:
-                    swa = SWA(swa_start, testbatch, modelGen(**modelGenParams), verbose,
+                    swa = SWA(swa_start, testfold, modelGen(**modelGenParams), verbose,
                               use_callbacks['SWA']['renewal'], lr_cycler, trainOnWeights=trainOnWeights, sgdReplacement=use_callbacks['SWA']['replace'])
                 else:
-                    swa = SWA(swa_start, testbatch, modelGen(**modelGenParams), verbose,
+                    swa = SWA(swa_start, testfold, modelGen(**modelGenParams), verbose,
                               use_callbacks['SWA']['renewal'], trainOnWeights=trainOnWeights, sgdReplacement=use_callbacks['SWA']['replace'])
                 callbacks.append(swa)
         use_swa = False
@@ -290,22 +280,22 @@ def batchTrainModel(batchYielder, n_models,
         for epoch in range(maxEpochs):
             
             for n in trainID: #Loop through training folds
-                trainbatch = batchYielder.getBatch(n) #Load fold data
+                trainfold = fold_yielder.getFold(n) #Load fold data
                 subEpoch += 1
                 print(n)
                 if binary == None: #First run, check classification mode
                     binary = True
-                    nClasses = len(np.unique(trainbatch['targets']))
+                    nClasses = len(np.unique(trainfold['targets']))
                     if nClasses > 2:
                         print (nClasses, "classes found, running in multiclass mode\n")
-                        trainbatch['targets'] = utils.to_categorical(trainbatch['targets'], num_classes=nClasses)
+                        trainfold['targets'] = utils.to_categorical(trainfold['targets'], num_classes=nClasses)
                         binary = False
                     else:
                         print (nClasses, "classes found, running in binary mode\n")
 
                 if trainOnWeights:
-                    model.fit(trainbatch['inputs'], trainbatch['targets'],
-                              sample_weight=trainbatch['weights'],
+                    model.fit(trainfold['inputs'], trainfold['targets'],
+                              sample_weight=trainfold['weights'],
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
                     if swa_start >= 0 and swa.active:
@@ -319,10 +309,10 @@ def batchTrainModel(batchYielder, n_models,
                             useSWA = False
                         
                     else:
-                        loss = model.evaluate(testbatch['inputs'], testbatch['targets'], sample_weight=testbatch['weights'], verbose=0)
+                        loss = model.evaluate(testfold['inputs'], testfold['targets'], sample_weight=testfold['weights'], verbose=0)
                     
                 else:
-                    model.fit(trainbatch['inputs'], trainbatch['targets'],
+                    model.fit(trainfold['inputs'], trainfold['targets'],
                               class_weight = 'auto',
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
@@ -336,7 +326,7 @@ def batchTrainModel(batchYielder, n_models,
                             loss = losses['base']
                             useSWA = False
                     else:
-                        loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
+                        loss = model.evaluate(testfold['inputs'], testfold['targets'], verbose=0)
                 
                 if swa_start >= 0 and swa.active and cycling and use_callbacks['CosAnnealLR']['cycle_mult'] > 1:
                     print ("{} SWA loss:", subEpoch, loss)
@@ -406,16 +396,16 @@ def batchTrainModel(batchYielder, n_models,
         results.append({})
         results[-1]['loss'] = best
         if binary:
-            testbatch = batchYielder.getBatch(test_id) #Load testing fold
-            prediction = model.predict(testbatch['inputs'], verbose=0)
-            if not isinstance(testbatch['weights'], type(None)):
-                results[-1]['wAUC'] = 1-roc_auc_score(testbatch['targets'],
+            testfold = fold_yielder.getFold(test_id) #Load testing fold
+            prediction = model.predict(testfold['inputs'], verbose=0)
+            if not isinstance(testfold['weights'], type(None)):
+                results[-1]['wAUC'] = 1-roc_auc_score(testfold['targets'],
                                                       prediction,
-                                                      sample_weight=testbatch['weights'])
-            results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'], prediction)
+                                                      sample_weight=testfold['weights'])
+            results[-1]['AUC'] = 1-roc_auc_score(testfold['targets'], prediction)
 
             if ams_args['n_total'] > 0:
-                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getTestDF(test_id, preds=prediction, weightName='orig_weights'), wFactor=ams_args['n_total']/len(prediction), br=ams_args['br'], deltaB=ams_args['deltaB'])
+                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(fold_yielder.getTestDF(test_id, preds=prediction, weightName='orig_weights'), wFactor=ams_args['n_total']/len(prediction), br=ams_args['br'], deltaB=ams_args['deltaB'])
         
         print ("Score is:", results[-1])
 

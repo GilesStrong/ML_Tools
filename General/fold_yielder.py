@@ -7,14 +7,14 @@ import pandas
 '''
 Todo:
 - Ammend HEP yielder to work with categorical features
-- Include getFeature in BatchYielder
+- Include getFeature in FoldYielder
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
-- Add method to BatchYielder to import other data into correct format, e.g. csv
-- Generalise getBatchDF
+- Add method to FoldYielder to import other data into correct format, e.g. csv
+- Generalise getFoldDF
 '''
 
-class BatchYielder():
+class FoldYielder():
     def __init__(self, datafile=None, nCats=0):
         self.nCats = nCats
         self.augmented = False
@@ -29,7 +29,7 @@ class BatchYielder():
         self.nFolds = len(self.source)
         self.nCats = nCats
 
-    def getBatch(self, index, datafile=None):
+    def getFold(self, index, datafile=None):
         if isinstance(datafile, type(None)):
             datafile = self.source
 
@@ -54,7 +54,7 @@ class BatchYielder():
                 'targets':targets,
                 'weights':weights}
 
-    def getBatchDF(self, index, datafile=None, preds=None, weightName='weights'):
+    def getFoldDF(self, index, datafile=None, preds=None, weightName='weights'):
         if isinstance(datafile, type(None)):
             datafile = self.source
 
@@ -68,7 +68,7 @@ class BatchYielder():
             data['pred_class'] = preds
         return data
 
-class HEPAugBatch(BatchYielder):
+class HEPAugFold(FoldYielder):
     def __init__(self, header, datafile=None, inputPipe=None,
                  rotate=True, reflect=True, augRotMult=4,
                  trainTimeAug=True, testTimeAug=True):
@@ -92,7 +92,7 @@ class HEPAugBatch(BatchYielder):
             self.augMult = 0
             print ('No augmentation specified!')
             inputPipe = None
-            self.getTestBatch = self.getBatch
+            self.getTestFold = self.getFold
             
         else: #reflect and rotate
             self.reflectAxes = ['_px', '_pz']
@@ -120,7 +120,7 @@ class HEPAugBatch(BatchYielder):
                 except KeyError:
                     pass
             
-    def getBatch(self, index, datafile=None):
+    def getFold(self, index, datafile=None):
         if isinstance(datafile, type(None)):
             datafile = self.source
             
@@ -161,7 +161,7 @@ class HEPAugBatch(BatchYielder):
                 'targets':targets,
                 'weights':weights}
     
-    def getTestBatch(self, index, augIndex, datafile=None):
+    def getTestFold(self, index, augIndex, datafile=None):
         if augIndex >= self.augMult:
             print ("Invalid augmentation index passed", augIndex)
             return -1
