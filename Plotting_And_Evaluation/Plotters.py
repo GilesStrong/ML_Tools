@@ -10,10 +10,10 @@ import numpy as np
 import pandas
 import types
 
-from ..general.Misc_Functions import uncertRound
-from .Bootstrap import * 
+from ..general.misc_functions import uncert_round
+from .bootstrap import * 
 
-def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=None, nSamples=100000, params={}, moments=False):
+def plot_feat(in_data, feat, cuts=None, labels=None, plot_bulk=True, weight_name=None, n_samples=100000, params={}, moments=False):
     loop = False
     if not isinstance(cuts, type(None)):
         if isinstance(cuts, list):
@@ -25,63 +25,61 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
                 print ("{} plots requested, but {} labels passed".format(len(cuts), len(labels)))
                 return -1
     
-    weightData = None
-    
     plt.figure(figsize=(16, 8))
     if loop:
         for i in range(len(cuts)):
             if isinstance(params, list):
-                tempParams = params[i]
+                tmp_params = params[i]
             else:
-                tempParams = params
+                tmp_params = params
 
-            if plotBulk: #Ignore tails for indicative plotting
-                featRange = np.percentile(inData[feat], [1,99])
-                #featRange = np.percentile(inData.loc[cuts[i], feat], [1,99])
-                if featRange[0] == featRange[1]:break
+            if plot_bulk: #Ignore tails for indicative plotting
+                feat_range = np.percentile(in_data[feat], [1,99])
+                #feat_range = np.percentile(in_data.loc[cuts[i], feat], [1,99])
+                if feat_range[0] == feat_range[1]:break
                 
                 cut = (cuts[i])
-                cut = cut & (inData[cut][feat] > featRange[0]) & (inData[cut][feat] < featRange[1])
-                if isinstance(weightName, type(None)):
-                    plotData = inData.loc[cut, feat]
+                cut = cut & (in_data[cut][feat] > feat_range[0]) & (in_data[cut][feat] < feat_range[1])
+                if isinstance(weight_name, type(None)):
+                    plot_data = in_data.loc[cut, feat]
                 else:
-                    plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
+                    plot_data = np.random.choice(in_data.loc[cut, feat], n_samples, p=in_data.loc[cut, weight_name]/np.sum(in_data.loc[cut, weight_name]))
                     
             else:
-                if isinstance(weightName, type(None)):
-                    plotData = inData.loc[cuts[i], feat]
+                if isinstance(weight_name, type(None)):
+                    plot_data = in_data.loc[cuts[i], feat]
                 else:
-                    plotData = np.random.choice(inData.loc[cuts[i], feat], nSamples, p=inData.loc[cuts[i], weightName]/np.sum(inData.loc[cuts[i], weightName]))
+                    plot_data = np.random.choice(in_data.loc[cuts[i], feat], n_samples, p=in_data.loc[cuts[i], weight_name]/np.sum(in_data.loc[cuts[i], weight_name]))
             
             label = labels[i]
             if moments:
-                label += r', $\bar{x}=$' + str(np.mean(plotData)) + r', $\sigma_x=$' + str(np.std(plotData))
+                label += r', $\bar{x}=$' + str(np.mean(plot_data)) + r', $\sigma_x=$' + str(np.std(plot_data))
 
-            sns.distplot(plotData, label=labels[i], **tempParams)
+            sns.distplot(plot_data, label=labels[i], **tmp_params)
     else:
-        if plotBulk: #Ignore tails for indicative plotting
-            featRange = np.percentile(inData[feat], [1,99])
-            if featRange[0] == featRange[1]:return -1
+        if plot_bulk: #Ignore tails for indicative plotting
+            feat_range = np.percentile(in_data[feat], [1,99])
+            if feat_range[0] == feat_range[1]:return -1
             
-            cut = (inData[feat] > featRange[0]) & (inData[feat] < featRange[1])
+            cut = (in_data[feat] > feat_range[0]) & (in_data[feat] < feat_range[1])
             
             
-            if isinstance(weightName, type(None)):
-                plotData = inData.loc[cut, feat]
+            if isinstance(weight_name, type(None)):
+                plot_data = in_data.loc[cut, feat]
             else:
-                plotData = np.random.choice(inData.loc[cut, feat], nSamples, p=inData.loc[cut, weightName]/np.sum(inData.loc[cut, weightName]))
+                plot_data = np.random.choice(in_data.loc[cut, feat], n_samples, p=in_data.loc[cut, weight_name]/np.sum(in_data.loc[cut, weight_name]))
                 
                 
         else:
-            if isinstance(weightName, type(None)):
-                plotData = inData[feat]
+            if isinstance(weight_name, type(None)):
+                plot_data = in_data[feat]
             else:
-                plotData = np.random.choice(inData[feat], nSamples, p=inData[weightName]/np.sum(inData[weightName]))
+                plot_data = np.random.choice(in_data[feat], n_samples, p=in_data[weight_name]/np.sum(in_data[weight_name]))
         
         label = ''
         if moments:
-            label += r', $\bar{x}=$' + str(np.mean(plotData)) + r', $\sigma_x=$' + str(np.std(plotData))
-        sns.distplot(plotData, label=label, **params)
+            label += r', $\bar{x}=$' + str(np.mean(plot_data)) + r', $\sigma_x=$' + str(np.std(plot_data))
+        sns.distplot(plot_data, label=label, **params)
 
     if loop or moments:
         plt.legend(loc='best', fontsize=16)
@@ -91,49 +89,49 @@ def plotFeat(inData, feat, cuts=None, labels=None, plotBulk=True, weightName=Non
     plt.xlabel(feat, fontsize=24, color='black')
     plt.show()
 
-def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_target', weightName=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
-    buildCurves = True
-    if isinstance(inData, type(None)) == isinstance(curves, type(None)):
+def roc_plot(in_data=None, curves=None, pred_name='pred_class', target_name='gen_target', weight_name=None, labels=None, aucs=None, bootstrap=False, log=False, baseline=True, params=[{}]):
+    build_curves = True
+    if isinstance(in_data, type(None)) == isinstance(curves, type(None)):
         print ("Must pass either targets and preds, or curves")
         return -1
     if not isinstance(curves, type(None)):
-        buildCurves = False
+        build_curves = False
 
-    if buildCurves:
+    if build_curves:
         curves = {}
         if bootstrap:
-            aucArgs = []
-            for i in range(len(inData)):
-                aucArgs.append({'labels':inData[i][targetName], 'preds':inData[i][predName], 'name':labels[i], 'indeces':inData[i].index.tolist()})
-                if not isinstance(weightName, type(None)):
-                    aucArgs[-1]['weights'] = inData[i][weightName]
-            aucs = mpRun(aucArgs, rocauc)
-            meanScores = {}
+            auc_args = []
+            for i in range(len(in_data)):
+                auc_args.append({'labels':in_data[i][target_name], 'preds':in_data[i][pred_name], 'name':labels[i], 'indeces':in_data[i].index.tolist()})
+                if not isinstance(weight_name, type(None)):
+                    auc_args[-1]['weights'] = in_data[i][weight_name]
+            aucs = mp_run(auc_args, roc_auc)
+            mean_scores = {}
             for i in labels:
-                meanScores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
-                print (str(i)+ ' ROC AUC, Mean = {} +- {}'.format(meanScores[i][0], meanScores[i][1]))
+                mean_scores[i] = (np.mean(aucs[i]), np.std(aucs[i]))
+                print (str(i)+ ' ROC AUC, Mean = {} +- {}'.format(mean_scores[i][0], mean_scores[i][1]))
         else:
-            meanScores = {}
-            for i in range(len(inData)):
-                if isinstance(weightName, type(None)):
-                    meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName])
+            mean_scores = {}
+            for i in range(len(in_data)):
+                if isinstance(weight_name, type(None)):
+                    mean_scores[labels[i]] = roc_auc_score(in_data[i][target_name].values, in_data[i][pred_name])
                 else:
-                    meanScores[labels[i]] = roc_auc_score(inData[i][targetName].values, inData[i][predName], sample_weight=inData[i][weightName])
-                print (str(i) + ' ROC AUC: {}'.format(meanScores[labels[i]]))
-        for i in range(len(inData)):
-            if isinstance(weightName, type(None)):
-                curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values)[:2]
+                    mean_scores[labels[i]] = roc_auc_score(in_data[i][target_name].values, in_data[i][pred_name], sample_weight=in_data[i][weight_name])
+                print (str(i) + ' ROC AUC: {}'.format(mean_scores[labels[i]]))
+        for i in range(len(in_data)):
+            if isinstance(weight_name, type(None)):
+                curves[labels[i]] = roc_curve(in_data[i][target_name].values, in_data[i][pred_name].values)[:2]
             else:
-                curves[labels[i]] = roc_curve(inData[i][targetName].values, inData[i][predName].values, sample_weight=inData[i][weightName].values)[:2]
+                curves[labels[i]] = roc_curve(in_data[i][target_name].values, in_data[i][pred_name].values, sample_weight=in_data[i][weight_name].values)[:2]
 
     plt.figure(figsize=[8, 8])
     for i in range(len(curves)):
-        if buildCurves:
+        if build_curves:
             if bootstrap:
-                meanScore = uncertRound(*meanScores[labels[i]])
+                meanScore = uncert_round(*mean_scores[labels[i]])
                 plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={}\pm{}$'.format(meanScore[0], meanScore[1]), **params[i])
             else:
-                plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={:.5f}$'.format(meanScores[labels[i]]), **params[i])
+                plt.plot(*curves[labels[i]], label=labels[i] + r', AUC$={:.5f}$'.format(mean_scores[labels[i]]), **params[i])
         else:
             plt.plot(*curves[i], label=labels[i], **params[i])
     
@@ -150,14 +148,14 @@ def rocPlot(inData=None, curves=None, predName='pred_class', targetName='gen_tar
     plt.yticks(fontsize=16, color='black')
     plt.show()
 
-def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_class', weightName=None,
-                     lim=(0,1), logy=True, params={'hist' : True, 'kde' : False, 'norm_hist' : True}):
+def get_class_pred_plot(in_data, labels=['Background', 'Signal'], pred_name='pred_class', weight_name=None,
+                        lim=(0,1), logy=True, params={'hist' : True, 'kde' : False, 'norm_hist' : True}):
     plt.figure(figsize=(16, 8))
-    for i in range(len(inData)):
+    for i in range(len(in_data)):
         hist_kws = {}
-        if not isinstance(weightName, type(None)):
-            hist_kws['weights'] = inData[i][weightName]
-        sns.distplot(inData[i][predName], label=labels[i], hist_kws=hist_kws, **params)
+        if not isinstance(weight_name, type(None)):
+            hist_kws['weights'] = in_data[i][weight_name]
+        sns.distplot(in_data[i][pred_name], label=labels[i], hist_kws=hist_kws, **params)
     plt.legend(loc='best', fontsize=16)
     plt.xlabel("Class prediction", fontsize=24, color='black')
     plt.xlim(lim)
@@ -169,13 +167,13 @@ def getClassPredPlot(inData, labels=['Background', 'Signal'], predName='pred_cla
     plt.yticks(fontsize=16, color='black')
     plt.show() 
 
-def _getSamples(inData, sampleName, weightName):
-    samples = set(inData[sampleName])
-    weights=[np.sum(inData[inData[sampleName] == sample][weightName]) for sample in samples]
+def _get_samples(in_data, sample_name, weight_name):
+    samples = set(in_data[sample_name])
+    weights=[np.sum(in_data[in_data[sample_name] == sample][weight_name]) for sample in samples]
     return [x[0] for x in np.array(sorted(zip(samples, weights), key=lambda x: x[1]))] #Todo improve sorting
 
-def getSamplePredPlot(inData, 
-                      targetName='gen_target', sampleName='gen_sample', predName='pred_class', weightName='gen_weight',
+def get_sample_pred_plot(in_data, 
+                      target_name='gen_target', sample_name='gen_sample', pred_name='pred_class', weight_name='gen_weight',
                       lim=(0,1), nBins = 35, logy=True, pallet='magma', desat=1,
                       hist_params={'normed': True, 'alpha': 1, 'stacked':True, 'rwidth':1.0,}):
     
@@ -184,20 +182,20 @@ def getSamplePredPlot(inData,
     
     plt.figure(figsize=(16, 8))
     
-    sig = (inData[targetName] == 1)
-    bkg = (inData[targetName] == 0)
+    sig = (in_data[target_name] == 1)
+    bkg = (in_data[target_name] == 0)
     
-    with sns.color_palette(pallet, len(set(inData[sampleName])), desat=desat):
+    with sns.color_palette(pallet, len(set(in_data[sample_name])), desat=desat):
         
-        samples = _getSamples(inData[bkg], sampleName, weightName)
-        plt.hist([inData[inData[sampleName] == sample][predName] for sample in samples],
-                 weights=[inData[inData[sampleName] == sample][weightName] for sample in samples],
+        samples = _get_samples(in_data[bkg], sample_name, weight_name)
+        plt.hist([in_data[in_data[sample_name] == sample][pred_name] for sample in samples],
+                 weights=[in_data[in_data[sample_name] == sample][weight_name] for sample in samples],
                  label=samples, **hist_params)
 
-        samples = _getSamples(inData[sig], sampleName, weightName)
+        samples = _get_samples(in_data[sig], sample_name, weight_name)
         for sample in samples:
-            plt.hist(inData[inData[sampleName] == sample][predName],
-                     weights=inData[inData[sampleName] == sample][weightName],
+            plt.hist(in_data[in_data[sample_name] == sample][pred_name],
+                     weights=in_data[in_data[sample_name] == sample][weight_name],
                      label='Signal ' + sample, histtype='step', linewidth='3', **hist_params)
 
         plt.legend(loc='best', fontsize=16)
@@ -213,12 +211,8 @@ def getSamplePredPlot(inData,
         plt.xticks(fontsize=16, color='black')
         plt.yticks(fontsize=16, color='black')
         plt.show()      
-
-def plotHistory(histories):
-    print ("Depreciated, move to plotTrainingHistory")
-    plotTrainingHistory(histories)
     
-def plotTrainingHistory(histories, save=False):
+def plot_training_history(histories, save=False):
     plt.figure(figsize=(16,8))
     for i, history in enumerate(histories):
         if i == 0:
@@ -265,7 +259,7 @@ def plotTrainingHistory(histories, save=False):
     if save:
         plt.savefig(save)
 
-def getModelHistoryComparisonPlot(histories, names, cv=False, logY=False):
+def get_model_history_comparison_plot(histories, names, cv=False, log_y=False):
     '''Compare validation loss evolution for several models
     cv=True expects history for CV training and plots mean and 68% CI bands'''
     plt.figure(figsize=(16,8))
@@ -281,23 +275,23 @@ def getModelHistoryComparisonPlot(histories, names, cv=False, logY=False):
     plt.yticks(fontsize=16, color='black')
     plt.xlabel("Epoch", fontsize=24, color='black')
     plt.ylabel("Loss", fontsize=24, color='black')
-    if logY:
+    if log_y:
         plt.yscale('log')
         plt.grid(True, which="both")
     plt.show()
 
-def getLRFinderComparisonPlot(lrFinders, names, logX=True, logY=True, loss='loss', cut=-10):
+def ge_lr_finder_comparison_plot(lr_finders, names, logX=True, log_y=True, loss='loss', cut=-10):
     '''Compare loss evolultion against learning rate for several LRFinder callbacks'''
     plt.figure(figsize=(16,8))
     
-    for lrFinder, name in zip(lrFinders, names):
-        plt.plot(lrFinder.history['lr'][:cut], lrFinder.history[loss][:cut], label=name)
+    for lr_finder, name in zip(lr_finders, names):
+        plt.plot(lr_finder.history['lr'][:cut], lr_finder.history[loss][:cut], label=name)
 
     plt.legend(loc='best', fontsize=16)
     if logX:
         plt.xscale('log')
         plt.grid(True, which="both")
-    if logY:
+    if log_y:
         plt.yscale('log')
         plt.grid(True, which="both")
     plt.xticks(fontsize=16, color='black')
@@ -306,13 +300,13 @@ def getLRFinderComparisonPlot(lrFinders, names, logX=True, logY=True, loss='loss
     plt.ylabel("Loss", fontsize=24, color='black')
     plt.show()
 
-def getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10):
+def get_lr_finder_mean_plot(lr_finders, loss='loss', cut=-10):
     '''Get mean loss evolultion against learning rate for several LRFinder callbacks'''
     plt.figure(figsize=(16,8))
-    minLen = np.min([len(lrFinders[x].history[loss][:cut]) for x in range(len(lrFinders))])
+    min_len = np.min([len(lr_finders[x].history[loss][:cut]) for x in range(len(lr_finders))])
     
-    sns.tsplot([lrFinders[x].history[loss][:minLen] for x in range(len(lrFinders))],
-               time=lrFinders[0].history['lr'][:minLen], ci='sd')
+    sns.tsplot([lr_finders[x].history[loss][:min_len] for x in range(len(lr_finders))],
+               time=lr_finders[0].history['lr'][:min_len], ci='sd')
 
     plt.legend(loc='best', fontsize=16)
     plt.xscale('log')
@@ -323,36 +317,37 @@ def getLRFinderMeanPlot(lrFinders, loss='loss', cut=-10):
     plt.ylabel("Loss", fontsize=24, color='black')
     plt.show()
 
-def getMonitorComparisonPlot(monitors, names, xAxis='iter', yAxis='Loss', lrLogX=True, logY=True):
+def get_monitor_comparison_plot(monitors, names, x_axis='iter', y_axis='Loss', lr_log_x=True, log_y=True):
     '''Compare validation loss.accuracy evolution for several models on a per iteration/learning-rate/momentum basis'''
     plt.figure(figsize=(16,8))
     for monitor, name in zip(monitors, names):
         if isinstance(monitor.history['val_loss'][0], list):
-            if yAxis == 'Loss':
+            if y_axis == 'Loss':
                 y = np.array(monitor.history['val_loss'])[:,0]
             else:
                 y = np.array(monitor.history['val_loss'])[:,1]
         else:
             y = monitor.history['val_loss']
                 
-        if xAxis == 'iter':
+        if x_axis == 'iter':
             plt.plot(range(len(monitor.history['val_loss'])), y, label=name)
-        elif xAxis == 'mom':
+        elif x_axis == 'mom':
             plt.plot(monitor.history['mom'], y, label=name)
         else:
             plt.plot(monitor.history['lr'], y, label=name)
 
     plt.legend(loc='best', fontsize=16)
-    if lrLogX: plt.xscale('log')
-    if logY: plt.yscale('log')
+    if lr_log_x: plt.xscale('log')
+    if log_y: plt.yscale('log')
     plt.grid(True, which="both")
     plt.xticks(fontsize=16, color='black')
     plt.yticks(fontsize=16, color='black')
-    if xAxis == 'iter':
+    if x_axis == 'iter':
         plt.xlabel("Iteration", fontsize=24, color='black')
-    elif xAxis == 'mom':
+    elif x_axis == 'mom':
         plt.xlabel("Momentum", fontsize=24, color='black')
     else:
         plt.xlabel("Learning rate", fontsize=24, color='black')
-    plt.ylabel(yAxis, fontsize=24, color='black')
+    plt.ylabel(y_axis, fontsize=24, color='black')
     plt.show()
+    

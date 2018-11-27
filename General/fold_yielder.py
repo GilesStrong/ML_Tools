@@ -11,25 +11,25 @@ Todo:
 - Tidy code and move to PEP 8
 - Add docstrings and stuff
 - Add method to FoldYielder to import other data into correct format, e.g. csv
-- Generalise getFoldDF
+- Generalise get_fold_df
 '''
 
 class FoldYielder():
-    def __init__(self, datafile=None, nCats=0):
-        self.nCats = nCats
+    def __init__(self, datafile=None, n_cats=0):
+        self.n_cats = n_cats
         self.augmented = False
-        self.augMult = 0
-        self.trainTimeAug = False
-        self.testTimeAug = False
+        self.aug_mult = 0
+        self.train_time_aug = False
+        self.test_time_aug = False
         if not isinstance(datafile, type(None)):
-            self.addSource(datafile, self.nCats)
+            self.add_source(datafile, self.n_cats)
 
-    def addSource(self, datafile, nCats=0):
+    def add_source(self, datafile, n_cats=0):
         self.source = datafile
-        self.nFolds = len(self.source)
-        self.nCats = nCats
+        self.n_folds = len(self.source)
+        self.n_cats = n_cats
 
-    def getFold(self, index, datafile=None):
+    def get_fold(self, index, datafile=None):
         if isinstance(datafile, type(None)):
             datafile = self.source
 
@@ -40,12 +40,12 @@ class FoldYielder():
         if 'fold_' + index + '/targets' in datafile:
             targets = np.array(datafile['fold_' + index + '/targets'])
         
-        if self.nCats:
+        if self.n_cats:
             inputs = []
-            allInputs = np.array(datafile['fold_' + index + '/inputs'])
-            for i in range(self.nCats):
-                inputs.append(allInputs[:,i])
-            inputs.append(allInputs[:,i+1:])
+            all_inputs = np.array(datafile['fold_' + index + '/inputs'])
+            for i in range(self.n_cats):
+                inputs.append(all_inputs[:,i])
+            inputs.append(all_inputs[:,i+1:])
             
         else:
             inputs = np.array(datafile['fold_' + index + '/inputs'])
@@ -54,7 +54,7 @@ class FoldYielder():
                 'targets':targets,
                 'weights':weights}
 
-    def getFoldDF(self, index, datafile=None, preds=None, weightName='weights'):
+    def get_fold_df(self, index, datafile=None, preds=None, weightName='weights'):
         if isinstance(datafile, type(None)):
             datafile = self.source
 
@@ -69,58 +69,58 @@ class FoldYielder():
         return data
 
 class HEPAugFold(FoldYielder):
-    def __init__(self, header, datafile=None, inputPipe=None,
-                 rotate=True, reflect=True, augRotMult=4,
-                 trainTimeAug=True, testTimeAug=True):
+    def __init__(self, header, datafile=None, input_pipe=None,
+                 rotate=True, reflect=True, rot_mult=4,
+                 train_time_aug=True, test_time_aug=True):
         self.header = header
-        self.rotateAug = rotate
-        self.reflectAug = reflect
+        self.rotate_aug = rotate
+        self.reflect_aug = reflect
         self.augmented = True
-        self.augRotMult = augRotMult
+        self.rot_mult = rot_mult
         
-        if self.rotateAug and not self.reflectAug:
-            self.augMult = self.augRotMult
+        if self.rotate_aug and not self.reflect_aug:
+            self.aug_mult = self.rot_mult
             
-        elif not self.rotateAug and self.reflectAug:
-            self.reflectAxes = ['_px', '_py', '_pz']
-            self.augMult = 8
+        elif not self.rotate_aug and self.reflect_aug:
+            self.reflect_axes = ['_px', '_py', '_pz']
+            self.aug_mult = 8
             
-        elif not self.rotateAug and not self.reflectAug:
+        elif not self.rotate_aug and not self.reflect_aug:
             self.augmented = False
-            trainTimeAug = False
-            testTimeAug = False
-            self.augMult = 0
+            train_time_aug = False
+            test_time_aug = False
+            self.aug_mult = 0
             print ('No augmentation specified!')
-            inputPipe = None
-            self.getTestFold = self.getFold
+            input_pipe = None
+            self.get_test_fold = self.get_fold
             
         else: #reflect and rotate
-            self.reflectAxes = ['_px', '_pz']
-            self.augMult = self.augRotMult*4
+            self.reflect_axes = ['_px', '_pz']
+            self.aug_mult = self.rot_mult*4
             
-        self.trainTimeAug = trainTimeAug
-        self.testTimeAug = testTimeAug
-        self.inputPipe = inputPipe
+        self.train_time_aug = train_time_aug
+        self.test_time_aug = test_time_aug
+        self.input_pipe = input_pipe
         
         if not isinstance(datafile, type(None)):
-            self.addSource(datafile)
+            self.add_source(datafile)
     
-    def rotate(self, inData, vectors):
+    def rotate(self, in_data, vectors):
         for vector in vectors:
-            inData.loc[:, vector + '_pxtmp'] = inData.loc[:, vector + '_px']*np.cos(inData.loc[:, 'aug_angle'])-inData.loc[:, vector + '_py']*np.sin(inData.loc[:, 'aug_angle'])
-            inData.loc[:, vector + '_py'] = inData.loc[:, vector + '_py']*np.cos(inData.loc[:, 'aug_angle'])+inData.loc[:, vector + '_px']*np.sin(inData.loc[:, 'aug_angle'])
-            inData.loc[:, vector + '_px'] = inData.loc[:, vector + '_pxtmp']
+            in_data.loc[:, vector + '_pxtmp'] = in_data.loc[:, vector + '_px']*np.cos(in_data.loc[:, 'aug_angle'])-in_data.loc[:, vector + '_py']*np.sin(in_data.loc[:, 'aug_angle'])
+            in_data.loc[:, vector + '_py'] = in_data.loc[:, vector + '_py']*np.cos(in_data.loc[:, 'aug_angle'])+in_data.loc[:, vector + '_px']*np.sin(in_data.loc[:, 'aug_angle'])
+            in_data.loc[:, vector + '_px'] = in_data.loc[:, vector + '_pxtmp']
     
-    def reflect(self, inData, vectors):
+    def reflect(self, in_data, vectors):
         for vector in vectors:
-            for coord in self.reflectAxes:
+            for coord in self.reflect_axes:
                 try:
-                    cut = (inData['aug' + coord] == 1)
-                    inData.loc[cut, vector + coord] = -inData.loc[cut, vector + coord]
+                    cut = (in_data['aug' + coord] == 1)
+                    in_data.loc[cut, vector + coord] = -in_data.loc[cut, vector + coord]
                 except KeyError:
                     pass
             
-    def getFold(self, index, datafile=None):
+    def get_fold(self, index, datafile=None):
         if isinstance(datafile, type(None)):
             datafile = self.source
             
@@ -137,32 +137,32 @@ class HEPAugFold(FoldYielder):
                     'targets':targets,
                     'weights':weights}
 
-        if isinstance(self.inputPipe, type(None)):
+        if isinstance(self.input_pipe, type(None)):
             inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
         else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
+            inputs = pandas.DataFrame(self.input_pipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
         
         vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-        if self.rotateAug:
+        if self.rotate_aug:
             inputs['aug_angle'] = 2*np.pi*np.random.random(size=len(inputs))
             self.rotate(inputs, vectors)
             
-        if self.reflectAug:
-            for coord in self.reflectAxes:
+        if self.reflect_aug:
+            for coord in self.reflect_axes:
                 inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
             self.reflect(inputs, vectors)
             
-        if isinstance(self.inputPipe, type(None)):
+        if isinstance(self.input_pipe, type(None)):
             inputs = inputs[self.header].values
         else:
-            inputs = self.inputPipe.transform(inputs[self.header].values)
+            inputs = self.input_pipe.transform(inputs[self.header].values)
         
         return {'inputs':inputs,
                 'targets':targets,
                 'weights':weights}
     
-    def getTestFold(self, index, augIndex, datafile=None):
-        if augIndex >= self.augMult:
+    def get_test_fold(self, index, augIndex, datafile=None):
+        if augIndex >= self.aug_mult:
             print ("Invalid augmentation index passed", augIndex)
             return -1
         
@@ -177,37 +177,37 @@ class HEPAugFold(FoldYielder):
         if 'fold_' + index + '/targets' in datafile:
             targets = np.array(datafile['fold_' + index + '/targets'])
             
-        if isinstance(self.inputPipe, type(None)):
+        if isinstance(self.input_pipe, type(None)):
             inputs = pandas.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
         else:
-            inputs = pandas.DataFrame(self.inputPipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
+            inputs = pandas.DataFrame(self.input_pipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
             
-        if self.reflectAug and self.rotateAug:
-            rotIndex = augIndex%self.augRotMult
-            refIndex = '{0:02b}'.format(int(augIndex/4))
+        if self.reflect_aug and self.rotate_aug:
+            rotIndex = augIndex%self.rot_mult
+            ref_index = '{0:02b}'.format(int(augIndex/4))
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-            inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.augRotMult)+1)[rotIndex]
-            for i, coord in enumerate(self.reflectAxes):
-                inputs['aug' + coord] = int(refIndex[i])
+            inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.rot_mult)+1)[rotIndex]
+            for i, coord in enumerate(self.reflect_axes):
+                inputs['aug' + coord] = int(ref_index[i])
             self.rotate(inputs, vectors)
             self.reflect(inputs, vectors)
             
-        elif self.reflectAug:
-            refIndex = '{0:03b}'.format(int(augIndex))
+        elif self.reflect_aug:
+            ref_index = '{0:03b}'.format(int(augIndex))
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-            for i, coord in enumerate(self.reflectAxes):
-                inputs['aug' + coord] = int(refIndex[i])
+            for i, coord in enumerate(self.reflect_axes):
+                inputs['aug' + coord] = int(ref_index[i])
             self.reflect(inputs, vectors)
             
         else:
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-            inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.augRotMult)+1)[augIndex]
+            inputs['aug_angle'] = np.linspace(0, 2*np.pi, (self.rot_mult)+1)[augIndex]
             self.rotate(inputs, vectors)
             
-        if isinstance(self.inputPipe, type(None)):
+        if isinstance(self.input_pipe, type(None)):
             inputs = inputs[self.header].values
         else:
-            inputs = self.inputPipe.transform(inputs[self.header].values)
+            inputs = self.input_pipe.transform(inputs[self.header].values)
 
         return {'inputs':inputs,
                 'targets':targets,
