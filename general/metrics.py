@@ -16,7 +16,6 @@ def calc_ams(s, b, br=0, deltaB=0):
     where b_r = 10, b = background, s = signal, log is natural logarithm """
 
     if b == 0:
-        print("No Background present, returning ams=-1")
         return -1
     
     if not deltaB:
@@ -28,7 +27,6 @@ def calc_ams(s, b, br=0, deltaB=0):
                       (((b**2)/sigmaB2)*np.log(1+((sigmaB2*s)/(b*(b+sigmaB2))))))
 
     if radicand < 0:
-        print('radicand is negative. Exiting')
         return -1
     else:
         return math.sqrt(radicand)

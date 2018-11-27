@@ -14,11 +14,11 @@ from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
-def ensemble_predict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): #Loop though each classifier and predict data class
-    if isinstance(inData, np.ndarray):
-        pred = np.zeros((len(inData), nOut)) #Purely continuous
+def ensemble_predict(in_data, ensemble, weights, output_pipe=None, n_out=1, n=-1): #Loop though each classifier and predict data class
+    if isinstance(in_data, np.ndarray):
+        pred = np.zeros((len(in_data), n_out)) #Purely continuous
     else:
-        pred = np.zeros((len(inData[0]), nOut)) # Contains categorical
+        pred = np.zeros((len(in_data[0]), n_out)) # Contains categorical
         
     if n == -1:
         n = len(ensemble)+1
@@ -27,14 +27,14 @@ def ensemble_predict(inData, ensemble, weights, outputPipe=None, nOut=1, n=-1): 
     weights = weights/weights.sum() #Renormalise weights
     for i, model in enumerate(ensemble):
         if isinstance(model, Sequential) or isinstance(model, Model):
-            tempPred =  model.predict(inData, verbose=0)
+            tempPred =  model.predict(in_data, verbose=0)
         elif isinstance(model, XGBoostClassifier):
-            tempPred = model.predict_proba(inData)[:,1][:, np.newaxis] #Works for one output, might need to be fixed for multiclass
+            tempPred = model.predict_proba(in_data)[:,1][:, np.newaxis] #Works for one output, might need to be fixed for multiclass
         else:
             print ("MVA not currently supported")
             return None
-        if not isinstance(outputPipe, type(None)):
-            tempPred = outputPipe.inverse_transform(tempPred)
+        if not isinstance(output_pipe, type(None)):
+            tempPred = output_pipe.inverse_transform(tempPred)
         pred += weights[i] * tempPred
     return pred
 
@@ -79,7 +79,7 @@ def assemble_ensemble(results, size, metric, compileArgs=None, weighting='recipr
     weights = weights/weights.sum() #normalise weights
     return ensemble, weights
 
-def save_ensemble(name, ensemble, weights, compileArgs=None, overwrite=False, inputPipe=None, outputPipe=None, saveMode='model'): #Todo add saving of input feature names
+def save_ensemble(name, ensemble, weights, compileArgs=None, overwrite=False, inputPipe=None, output_pipe=None, saveMode='model'): #Todo add saving of input feature names
     if (len(glob.glob(name + "*.json")) or len(glob.glob(name + "*.h5")) or len(glob.glob(name + "*.pkl"))) and not overwrite:
         print ("Ensemble already exists with that name, call with overwrite=True to force save")
     else:
@@ -113,15 +113,15 @@ def save_ensemble(name, ensemble, weights, compileArgs=None, overwrite=False, in
         if inputPipe != None:
             with open(name + '_inputPipe.pkl', 'wb') as fout:
                 pickle.dump(inputPipe, fout)
-        if outputPipe != None:
-            with open(name + '_outputPipe.pkl', 'wb') as fout:
-                pickle.dump(outputPipe, fout)
+        if output_pipe != None:
+            with open(name + '_output_pipe.pkl', 'wb') as fout:
+                pickle.dump(output_pipe, fout)
 
-def load_ensemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=False, loadMode='model'): #Todo add loading of input feature names
+def load_ensemble(name, ensembleSize=10, inputPipeLoad=False, output_pipeLoad=False, loadMode='model'): #Todo add loading of input feature names
     ensemble = []
     weights = None
     inputPipe = None
-    outputPipe = None
+    output_pipe = None
     compileArgs = None
     try:
         with open(name + '_compile.json', 'r') as fin:
@@ -144,10 +144,10 @@ def load_ensemble(name, ensembleSize=10, inputPipeLoad=False, outputPipeLoad=Fal
     if inputPipeLoad:
         with open(name + '_inputPipe.pkl', 'rb') as fin:
             inputPipe = pickle.load(fin)
-    if outputPipeLoad:
-        with open(name + '_outputPipe.pkl', 'rb') as fin:
-            outputPipe = pickle.load(fin)
-    return ensemble, weights, compileArgs, inputPipe, outputPipe
+    if output_pipeLoad:
+        with open(name + '_output_pipe.pkl', 'rb') as fin:
+            output_pipe = pickle.load(fin)
+    return ensemble, weights, compileArgs, inputPipe, output_pipe
 
 def test_ensemble_auc(X, y, ensemble, weights, size=10):
     for i in range(size):
