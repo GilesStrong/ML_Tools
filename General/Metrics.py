@@ -6,7 +6,7 @@ import multiprocessing as mp
 
 from sklearn.model_selection import StratifiedKFold
 
-from ML_Tools.General.Misc_Functions import uncertRound
+from .Misc_Functions import uncertRound
 
 def AMS(s, b, br=0, deltaB=0):
     """ Approximate Median Significance defined as:

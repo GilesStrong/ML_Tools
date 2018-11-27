@@ -14,7 +14,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 sns.set_style("white")
 
-from ML_Tools.General.PreProc import getPreProcPipes
+from .PreProc import getPreProcPipes
 
 def rankClassifierFeatures(data, trainFeatures, nSplits=10, nJobs=4, weights=None, target='gen_target', datatype='float32'):
     inputPipe, outputPipe = getPreProcPipes(normIn=True)

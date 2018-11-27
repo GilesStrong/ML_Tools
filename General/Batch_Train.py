@@ -17,12 +17,12 @@ import os
 from random import shuffle
 import sys
 
-from ML_Tools.General.Misc_Functions import uncertRound
-from ML_Tools.Plotting_And_Evaluation.Plotters import *
-from ML_Tools.General.Ensemble_Functions import *
-from ML_Tools.General.Callbacks import *
-from ML_Tools.General.Metrics import *
-from ML_Tools.General.BatchYielder import BatchYielder
+from .Misc_Functions import uncertRound
+from ..plotting_and_evaluation.Plotters import *
+from .Ensemble_Functions import *
+from .Callbacks import *
+from .Metrics import *
+from .BatchYielder import BatchYielder
 
 '''
 Todo:
@@ -45,7 +45,7 @@ def getBatch(index, datafile):
 
 def getFolds(n, nSplits):
     train = [x for x in range(nSplits) if x != n]
-    shuffle(train)
+    #shuffle(train)
     test = n
     return train, test
 
@@ -217,7 +217,7 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
     if cosAnnealMult: print ("Using cosine annealing")
     if trainOnWeights: print ("Training using weights")
 
-    for fold in range(nSplits):
+    for fold in [4]:# range(nSplits):
         foldStart = timeit.default_timer()
         print ("Running fold", fold+1, "/", nSplits)
         os.system("rm " + saveLoc + "best.h5")
@@ -257,12 +257,13 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
                 swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
             callbacks.append(swa)
         useSWA = False
-
+        print(trainID)
         for epoch in range(maxEpochs):
+            
             for n in trainID: #Loop through training folds
                 trainbatch = batchYielder.getBatch(n) #Load fold data
                 subEpoch += 1
-                
+                print(n)
                 if binary == None: #First run, check classification mode
                     binary = True
                     nClasses = len(np.unique(trainbatch['targets']))
