@@ -16,6 +16,7 @@ import numpy as np
 import os
 from random import shuffle
 import sys
+from pathlib import Path
 
 from .Misc_Functions import uncertRound
 from ..plotting_and_evaluation.Plotters import *
@@ -181,25 +182,23 @@ def batchTrainClassifier(batchYielder, nSplits, modelGen, modelGenParams, trainP
                          verbose=False, logoutput=False, amsSize=0, plot=True):
     print("Depreciated, move to using batchTrainModel")
 
-def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams,
-                    cosAnnealMult=0, reverseAnneal=False, plotLR=False, reduxDecay=False,
-                    annealMomentum=False, reverseAnnealMomentum=False, plotMomentum=False,
-                    oneCycle=False, ratio=0.25, reverse=False, lrScale=10, momScale=0.1, plotOneCycle=False, scale=30, mode='sgd',
-                    swaStart=-1, swaRenewal=-1, sgdReplacement=False,
-                    trainOnWeights=True,
-                    saveLoc='train_weights/', patience=10, maxEpochs=10000,
-                    verbose=False, logoutput=False, amsSize=0, plot=True):
+def batchTrainModel(batchYielder, n_models,
+                    modelGen, modelGenParams, trainParams, 
+                    use_callbacks={},
+                    trainOnWeights=True, patience=10, maxEpochs=10000,
+                    plots=['history'], ams_args={'n_total':0, 'br':0, 'deltaB':0},
+                    saveloc=Path('train_weights'), verbose=False, logoutput=False):
     
-    os.system("mkdir " + saveLoc)
-    os.system("rm " + saveLoc + "*.h5")
-    os.system("rm " + saveLoc + "*.json")
-    os.system("rm " + saveLoc + "*.pkl")
-    os.system("rm " + saveLoc + "*.png")
-    os.system("rm " + saveLoc + "*.log")
+    os.makedirs(f"mkdir {saveloc}", exist_ok=True)
+    os.system(f"rm {saveloc}/*.h5")
+    os.system(f"rm {saveloc}/*.json")
+    os.system(f"rm {saveloc}/*.pkl")
+    os.system(f"rm {saveloc}/*.png")
+    os.system(f"rm {saveloc}/*.log")
     
     if logoutput:
         old_stdout = sys.stdout
-        log_file = open(saveLoc + 'training_log.log', 'w')
+        log_file = open(saveloc/'training_log.log', 'w')
         sys.stdout = log_file
 
     start = timeit.default_timer()
@@ -214,13 +213,15 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
         print ("HDF5 as input is depreciated, converting to BatchYielder")
         batchYielder = BatchYielder(batchYielder)
 
-    if cosAnnealMult: print ("Using cosine annealing")
     if trainOnWeights: print ("Training using weights")
+    
+    n_folds = batchYielder.nFolds
+    nb = math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size'])
 
-    for fold in [4]:# range(nSplits):
+    for fold in [4]:# range(n_models):
         foldStart = timeit.default_timer()
-        print ("Running fold", fold+1, "/", nSplits)
-        os.system("rm " + saveLoc + "best.h5")
+        print ("Running fold", fold+1, "/", n_models)
+        os.system(f"rm {saveloc}/best.h5")
         best = -1
         bestLR = -1
         reduxDecayActive = False
@@ -229,7 +230,7 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
         subEpoch = 0
         stop = False
         lossHistory = {'val_loss':[], 'swa_val_loss':[]}
-        trainID, testID = getFolds(fold, nSplits) #Get fold indeces for training and testing for current fold
+        trainID, testID = getFolds(fold, n_folds) #Get fold indeces for training and testing for current fold
 
         model = None
         model = modelGen(**modelGenParams)
@@ -238,25 +239,54 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
         testbatch = batchYielder.getBatch(testID) #Load testing fold
 
         callbacks = []
-        if cosAnnealMult:
-            cosAnneal = CosAnneal(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnneal)
-            callbacks.append(cosAnneal)
-        
-        if annealMomentum:
-            cosAnnealMomentum = CosAnnealMomentum(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), cosAnnealMult, reverseAnnealMomentum)
-            callbacks.append(cosAnnealMomentum)    
+        cycling = False
+        redux_decay = False
+        lr_cycler = None
+        mom_cycler = None
+        swa_start = -1
 
-        if oneCycle:
-            oneCycle = OneCycle(math.ceil(len(batchYielder.source['fold_0/targets'])/trainParams['batch_size']), ratio=ratio, reverse=reverse, lrScale=lrScale, momScale=momScale, scale=scale, mode=mode)
-            callbacks.append(oneCycle)  
-        
-        if swaStart >= 0:
-            if cosAnnealMult:
-                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, cosAnneal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
-            else:
-                swa = SWA(swaStart, testbatch, modelGen(**modelGenParams), verbose, swaRenewal, trainOnWeights=trainOnWeights, sgdReplacement=sgdReplacement)
-            callbacks.append(swa)
-        useSWA = False
+        if 'OneCycle' in use_callbacks:
+            print("Using 1-cycle")
+            lr_cycler = OneCycle(**{'nb':nb, **use_callbacks['OneCycle']})
+            callbacks.append(lr_cycler)
+
+        else:
+            if 'LinearCLR' in use_callbacks:
+                print("Using linear LR cycle")
+                cycling = True
+                lr_cycler = LinearCLR(**{'nb':nb, **use_callbacks['LinearCLR']})
+                callbacks.append(lr_cycler)
+
+            elif 'CosAnnealLR' in use_callbacks:
+                print("Using cosine LR annealing")
+                cycling = True
+                redux_decay = use_callbacks['CosAnnealLR']['redux_decay']
+                lr_cycler = CosAnneal(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'])
+                callbacks.append(lr_cycler)
+
+            if 'LinearCMom' in use_callbacks:
+                print("Using linear momentum cycle")
+                cycling = True
+                mom_cycler = LinearCMom(**{'nb':nb, **use_callbacks['LinearCMom']})
+                callbacks.append(mom_cycler)
+
+            elif 'CosAnnealMom' in use_callbacks:
+                print("Using cosine momentum annealing")
+                cycling = True
+                mom_cycler = CosAnnealMomentum(**{'nb':nb, **use_callbacks['CosAnnealMom']})
+                callbacks.append(mom_cycler)
+  
+            if 'SWA' in use_callbacks:
+                swa_start = use_callbacks['SWA']['start']
+                if cycling:
+                    swa = SWA(swa_start, testbatch, modelGen(**modelGenParams), verbose,
+                              use_callbacks['SWA']['renewal'], lr_cycler, trainOnWeights=trainOnWeights, sgdReplacement=use_callbacks['SWA']['replace'])
+                else:
+                    swa = SWA(swa_start, testbatch, modelGen(**modelGenParams), verbose,
+                              use_callbacks['SWA']['renewal'], trainOnWeights=trainOnWeights, sgdReplacement=use_callbacks['SWA']['replace'])
+                callbacks.append(swa)
+        use_swa = False
+
         print(trainID)
         for epoch in range(maxEpochs):
             
@@ -279,7 +309,7 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
                               sample_weight=trainbatch['weights'],
                               callbacks = callbacks, **trainParams) #Train for one epoch
 
-                    if swaStart >= 0 and swa.active:
+                    if swa_start >= 0 and swa.active:
                         losses = swa.get_losses()
                         print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
                         if losses['swa'] < losses['base']:
@@ -297,7 +327,7 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
                               class_weight = 'auto',
                               callbacks = callbacks, **trainParams) #Train for one epoch
                     
-                    if swaStart >= 0 and swa.active:
+                    if swa_start >= 0 and swa.active:
                         losses = swa.get_losses()
                         print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
                         if losses['swa'] < losses['base']:
@@ -309,10 +339,10 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
                     else:
                         loss = model.evaluate(testbatch['inputs'], testbatch['targets'], verbose=0)
                 
-                if swaStart >= 0 and swa.active and cosAnnealMult > 1:
+                if swa_start >= 0 and swa.active and cycling and use_callbacks['CosAnnealLR']['cycle_mult'] > 1:
                     print ("{} SWA loss:", subEpoch, loss)
                 
-                if swaStart >= 0:
+                if swa_start >= 0:
                     if swa.active:
                         lossHistory['swa_val_loss'].append(losses['swa'])
                         lossHistory['val_loss'].append(losses['base'])
@@ -324,35 +354,35 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
 
                 if loss <= best or best < 0: #Save best
                     best = loss
-                    if cosAnnealMult:
-                        if cosAnneal.lrs[-1] > 0:
-                            bestLR = cosAnneal.lrs[-1]
+                    if cycling:
+                        if lr_cycler.lrs[-1] > 0:
+                            bestLR = lr_cycler.lrs[-1]
                         else:
-                            bestLR = cosAnneal.lrs[-2]
+                            bestLR = lr_cycler.lrs[-2]
                     epochCounter = 0
-                    if swaStart >= 0 and swa.active and useSWA:
-                        swa.test_model.save_weights(saveLoc + "best.h5")
+                    if swa_start >= 0 and swa.active and useSWA:
+                        swa.test_model.save_weights(saveloc/"best.h5")
                     else:
-                        model.save_weights(saveLoc + "best.h5")
+                        model.save_weights(saveloc/"best.h5")
                     if reduxDecayActive:
-                        cosAnneal.lrs.append(float(K.get_value(model.optimizer.lr)))
+                        lr_cycler.lrs.append(float(K.get_value(model.optimizer.lr)))
                     if verbose:
                         print ('{} New best found: {}'.format(subEpoch, best))
-                elif cosAnnealMult and not reduxDecayActive:
-                    if cosAnneal.cycle_end:
+                elif cycling and not reduxDecayActive:
+                    if lr_cycler.cycle_end:
                         epochCounter += 1
                 else:
                     epochCounter += 1
                     if reduxDecayActive:
                         lr = 0.8*float(K.get_value(model.optimizer.lr))
-                        cosAnneal.lrs.append(lr)
+                        lr_cycler.lrs.append(lr)
                         K.set_value(model.optimizer.lr, lr)
 
                 if epochCounter >= tmpPatience: #Early stopping
-                    if cosAnnealMult and reduxDecay and not reduxDecayActive:
+                    if cycling and use_callbacks['CosAnnealLR']['redux_decay'] and not reduxDecayActive:
                         print ('CosineAnneal stalling after {} epochs, entering redux decay at LR={}'.format(subEpoch, bestLR))
-                        model.load_weights(saveLoc +  "best.h5")
-                        cosAnneal.lrs.append(bestLR)
+                        model.load_weights(saveloc/"best.h5")
+                        lr_cycler.lrs.append(bestLR)
                         K.set_value(model.optimizer.lr, bestLR)
                         tmpPatience = 10
                         epochCounter = 0
@@ -367,11 +397,11 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
             if stop:
                 break
 
-        model.load_weights(saveLoc +  "best.h5")
+        model.load_weights(saveloc/"best.h5")
 
         histories.append({})
         histories[-1]['val_loss'] = lossHistory['val_loss']
-        if swaStart >= 0:
+        if swa_start >= 0:
             histories[-1]['swa_val_loss'] = lossHistory['swa_val_loss']
         
         results.append({})
@@ -385,25 +415,24 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
                                                       sample_weight=testbatch['weights'])
             results[-1]['AUC'] = 1-roc_auc_score(testbatch['targets'], prediction)
 
-            if amsSize:
-                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getBatchDF(testID, preds=prediction, weightName='orig_weights'),
-                                                                       wFactor=amsSize/len(prediction))
+            if ams_args['n_total'] > 0:
+                 results[-1]['AMS'], results[-1]['cut'] = amsScanQuick(batchYielder.getTestDF(testID, preds=prediction, weightName='orig_weights'), wFactor=ams_args['n_total']/len(prediction), br=ams_args['br'], deltaB=ams_args['deltaB'])
+        
         print ("Score is:", results[-1])
 
-        if plotLR: cosAnneal.plot_lr()
-        if plotMomentum: cosAnnealMomentum.plot_momentum()
-        if plotOneCycle: oneCycle.plot()
+        if 'lr' in plots: lr_cycler.plot_lr()
+        if 'mom' in plots: mom_cycler.plot_momentum()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
 
-        model.save(saveLoc +  'train_' + str(fold) + '.h5')
-        with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
+        model.save(str(saveloc/('train_' + str(fold) + '.h5')))
+        with open(saveloc/'resultsFile.pkl', 'wb') as fout: #Save results
             pickle.dump(results, fout)
 
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
-    if plot: plotTrainingHistory(histories, save=saveLoc + 'loss_history.png')
+    if 'history' in plots: plotTrainingHistory(histories, save=saveloc/'loss_history.png')
     for score in results[0]:
         mean = uncertRound(np.mean([x[score] for x in results]), np.std([x[score] for x in results])/np.sqrt(len(results)))
         print ("Mean", score, "= {} +- {}".format(mean[0], mean[1]))
@@ -413,3 +442,4 @@ def batchTrainModel(batchYielder, nSplits, modelGen, modelGenParams, trainParams
         sys.stdout = old_stdout
         log_file.close()
     return results, histories
+    
