@@ -206,7 +206,7 @@ class CosAnnealLR(Callback):
             self.lr = float(K.get_value(self.model.optimizer.lr))
         self.cycle_end = False
         
-    def plot_(self):
+    def plot(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations")
         plt.ylabel("learning rate")
