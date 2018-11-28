@@ -19,8 +19,13 @@ from .callbacks import *
 from .misc_functions import uncert_round
 from ..plotting_and_evaluation.plotters import plot_training_history
 
+<<<<<<< HEAD:General/Training.py
 def train_classifier(X, y, n_splits, model_gen, model_gen_params, train_params,
     class_weights='auto', sample_weights=None, saveloc='train_weights/', patience=10):
+=======
+def train_classifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
+    classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):
+>>>>>>> master:general/training.py
     start = timeit.default_timer()
     results = []
     histories = []
@@ -56,8 +61,13 @@ def train_classifier(X, y, n_splits, model_gen, model_gen_params, train_params,
         save_best = ModelCheckpoint(saveloc +  "best.h5", monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True, mode='auto', period=1)
         
         weights=None
+<<<<<<< HEAD:General/Training.py
         if not isinstance(sample_weights, type(None)):
             weights = sample_weights[train]
+=======
+        if not isinstance(sampleWeights, type(None)):
+            weights = sampleWeights[train]
+>>>>>>> master:general/training.py
         
         model.fit(X[train], y[train],
                   validation_data = (X[test], y[test]),
@@ -81,6 +91,7 @@ def train_classifier(X, y, n_splits, model_gen, model_gen_params, train_params,
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
+<<<<<<< HEAD:General/Training.py
     plot_training_history(histories, saveloc + 'history.png')
 
     mean_loss = uncert_round(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
@@ -88,6 +99,15 @@ def train_classifier(X, y, n_splits, model_gen, model_gen_params, train_params,
     if binary:
         mean_auc = uncert_round(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
         print ("Mean AUC = {} +- {}".format(mean_auc[0], mean_auc[1]))
+=======
+    plot_training_history(histories, saveLoc + 'history.png')
+
+    meanLoss = uncert_round(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
+    print ("Mean loss = {} +- {}".format(meanLoss[0], meanLoss[1]))
+    if binary:
+        meanAUC = uncert_round(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
+        print ("Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1]))
+>>>>>>> master:general/training.py
     print("______________________________________\n")
 
     return results, histories

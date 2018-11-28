@@ -8,11 +8,19 @@ from keras.models import Sequential
 
 '''
 Todo:
+<<<<<<< HEAD:General/Models.py
 - Combine getM_model methods
 - Works out way to remove need for dense layer for continuous inputs in cat model
 '''
 
 def get_model(version, n_in, compile_args, mode, n_out=1):
+=======
+- Combine get_model methods
+- Works out way to remove need for dense layer for continuous inputs in cat model
+'''
+
+def get_model(version, nIn, compileArgs, mode, nOut=1):
+>>>>>>> master:general/models.py
     model = Sequential()
 
     if 'depth' in compile_args:
@@ -94,7 +102,11 @@ def get_model(version, n_in, compile_args, mode, n_out=1):
     model.compile(loss=compile_args['loss'], optimizer=optimiser)
     return model
 
+<<<<<<< HEAD:General/Models.py
 def get_cat_model(version, n_cont_n, compile_args, mode, n_out=1, cat_szs=[]):
+=======
+def get_cat_model(version, nContIn, compileArgs, mode, nOut=1, cat_szs=[]):
+>>>>>>> master:general/models.py
     #Categorical embeddings
     models = []
     for cat_sz in cat_szs:
