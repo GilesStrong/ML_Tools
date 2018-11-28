@@ -19,68 +19,87 @@ from .callbacks import *
 from .misc_functions import uncert_round
 from ..plotting_and_evaluation.plotters import plot_training_history
 
+<<<<<<< HEAD:General/Training.py
+def train_classifier(X, y, n_splits, model_gen, model_gen_params, train_params,
+    class_weights='auto', sample_weights=None, saveloc='train_weights/', patience=10):
+=======
 def train_classifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     classWeights='auto', sampleWeights=None, saveLoc='train_weights/', patience=10):
+>>>>>>> master:general/training.py
     start = timeit.default_timer()
     results = []
     histories = []
-    os.system("mkdir " + saveLoc)
-    os.system("rm " + saveLoc + "*.h5")
-    os.system("rm " + saveLoc + "*.json")
-    os.system("rm " + saveLoc + "*.pkl")
+    os.system("mkdir " + saveloc)
+    os.system("rm " + saveloc + "*.h5")
+    os.system("rm " + saveloc + "*.json")
+    os.system("rm " + saveloc + "*.pkl")
 
-    kf = StratifiedKFold(n_splits=nSplits, shuffle=True)
+    kf = StratifiedKFold(n_splits=n_splits, shuffle=True)
     folds = kf.split(X, y)
 
     binary = True
-    nClasses = len(np.unique(y))
-    if nClasses > 2:
-        print (nClasses, "classes found, running in multiclass mode\n")
-        y = utils.to_categorical(y, num_classes=nClasses)
+    n_classes = len(np.unique(y))
+    if n_classes > 2:
+        print (n_classes, "classes found, running in multiclass mode\n")
+        y = utils.to_categorical(y, num_classes=n_classes)
         binary = False
-        modelGenParams['nOut'] = nClasses
+        model_gen_params['nOut'] = n_classes
     else:
-        print (nClasses, "classes found, running in binary mode\n")
+        print (n_classes, "classes found, running in binary mode\n")
 
     for i, (train, test) in enumerate(folds):
-        print ("Running fold", i+1, "/", nSplits)
-        os.system("rm " + saveLoc + "best.h5")
-        foldStart = timeit.default_timer()
+        print ("Running fold", i+1, "/", n_splits)
+        os.system("rm " + saveloc + "best.h5")
+        fold_start = timeit.default_timer()
 
         model = None
-        model = modelGen(**modelGenParams)
+        model = model_gen(**model_gen_params)
         model.reset_states #Just checking
 
-        lossHistory = LossHistory((X[train], y[train]))
-        earlyStop = EarlyStopping(monitor='val_loss', patience=patience, verbose=1, mode='auto')
-        saveBest = ModelCheckpoint(saveLoc +  "best.h5", monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True, mode='auto', period=1)
+        loss_history = LossHistory((X[train], y[train]))
+        early_stop = EarlyStopping(monitor='val_loss', patience=patience, verbose=1, mode='auto')
+        save_best = ModelCheckpoint(saveloc +  "best.h5", monitor='val_loss', verbose=0, save_best_only=True, save_weights_only=True, mode='auto', period=1)
         
         weights=None
+<<<<<<< HEAD:General/Training.py
+        if not isinstance(sample_weights, type(None)):
+            weights = sample_weights[train]
+=======
         if not isinstance(sampleWeights, type(None)):
             weights = sampleWeights[train]
+>>>>>>> master:general/training.py
         
         model.fit(X[train], y[train],
                   validation_data = (X[test], y[test]),
-                  callbacks = [earlyStop, saveBest, lossHistory],
-                  class_weight = classWeights, sample_weight=weights,
-                  **trainParams)
-        histories.append(lossHistory.losses)
-        model.load_weights(saveLoc +  "best.h5")
+                  callbacks = [early_stop, save_best, loss_history],
+                  class_weight = class_weights, sample_weight=weights,
+                  **train_params)
+        histories.append(loss_history.losses)
+        model.load_weights(saveloc +  "best.h5")
 
         results.append({})
         results[-1]['loss'] = model.evaluate(X[test], y[test], verbose=0)
         if binary: results[-1]['AUC'] = 1-roc_auc_score(y[test], model.predict(X[test], verbose=0), sample_weight=weights)
         print ("Score is:", results[-1])
 
-        print("Fold took {:.3f}s\n".format(timeit.default_timer() - foldStart))
+        print("Fold took {:.3f}s\n".format(timeit.default_timer() - fold_start))
 
-        model.save(saveLoc +  'train_' + str(i) + '.h5')
-        with open(saveLoc +  'resultsFile.pkl', 'wb') as fout: #Save results
+        model.save(saveloc +  'train_' + str(i) + '.h5')
+        with open(saveloc +  'resultsFile.pkl', 'wb') as fout: #Save results
             pickle.dump(results, fout)
 
     print("\n______________________________________")
     print("Training finished")
     print("Cross-validation took {:.3f}s ".format(timeit.default_timer() - start))
+<<<<<<< HEAD:General/Training.py
+    plot_training_history(histories, saveloc + 'history.png')
+
+    mean_loss = uncert_round(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
+    print ("Mean loss = {} +- {}".format(mean_loss[0], mean_loss[1]))
+    if binary:
+        mean_auc = uncert_round(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
+        print ("Mean AUC = {} +- {}".format(mean_auc[0], mean_auc[1]))
+=======
     plot_training_history(histories, saveLoc + 'history.png')
 
     meanLoss = uncert_round(np.mean([x['loss'] for x in results]), np.std([x['loss'] for x in results])/np.sqrt(len(results)))
@@ -88,6 +107,8 @@ def train_classifier(X, y, nSplits, modelGen, modelGenParams, trainParams,
     if binary:
         meanAUC = uncert_round(np.mean([x['AUC'] for x in results]), np.std([x['AUC'] for x in results])/np.sqrt(len(results)))
         print ("Mean AUC = {} +- {}".format(meanAUC[0], meanAUC[1]))
+>>>>>>> master:general/training.py
     print("______________________________________\n")
 
     return results, histories
+    

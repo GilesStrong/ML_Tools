@@ -14,10 +14,10 @@ sns.set_style("whitegrid")
 class ValidationMonitor(Callback):
     '''Callback to monitor validation performance and optimiser settings after every minibatch
     For short training diagnosis; slow to run, do not use for full training'''
-    def __init__(self, valData=None, valBatchSize=None, mode='sgd'):
+    def __init__(self, val_data=None, val_batch_size=None, mode='sgd'):
         super(ValidationMonitor, self).__init__()
-        self.valData = valData
-        self.valBatchSize = valBatchSize
+        self.val_data = val_data
+        self.val_batch_size = val_batch_size
         self.mode = mode
 
     def on_train_begin(self, logs={}):
@@ -32,14 +32,14 @@ class ValidationMonitor(Callback):
         self.history['loss'].append(logs.get('loss'))
         self.history['acc'].append(logs.get('acc'))
         
-        if not isinstance(self.valData, type(None)):
-            mbMask = np.zeros(len(self.valData['y']), dtype=int)
-            mbMask[:self.valBatchSize] = 1
-            np.random.shuffle(mbMask)
-            mbMask = mbMask.astype(bool)
-            self.history['val_loss'].append(self.model.evaluate(x=self.valData['x'][mbMask],
-                                                                y=self.valData['y'][mbMask],
-                                                                sample_weight=self.valData['sample_weight'][mbMask], 
+        if not isinstance(self.val_data, type(None)):
+            mb_mask = np.zeros(len(self.val_data['y']), dtype=int)
+            mb_mask[:self.val_batch_size] = 1
+            np.random.shuffle(mb_mask)
+            mb_mask = mb_mask.astype(bool)
+            self.history['val_loss'].append(self.model.evaluate(x=self.val_data['x'][mb_mask],
+                                                                y=self.val_data['y'][mb_mask],
+                                                                sample_weight=self.val_data['sample_weight'][mb_mask], 
                                                                 verbose=0))
                 
         self.history['lr'].append(float(K.get_value(self.model.optimizer.lr)))
@@ -50,8 +50,8 @@ class ValidationMonitor(Callback):
             self.history['mom'].append(float(K.get_value(self.model.optimizer.beta_1)))
 
 class LossHistory(Callback):
-    def __init__(self, trData):
-        self.trainingData = trData
+    def __init__(self, train_data):
+        self.train_data = train_data
 
     def on_train_begin(self, logs={}):
         self.losses = {}
@@ -59,41 +59,41 @@ class LossHistory(Callback):
         self.losses['val_loss'] = []
 
     def on_epoch_end(self, epoch, logs={}):
-        self.losses['loss'].append(self.model.evaluate(self.trainingData[0], self.trainingData[1], verbose=0))
+        self.losses['loss'].append(self.model.evaluate(self.train_data[0], self.train_data[1], verbose=0))
         self.losses['val_loss'].append(logs.get('val_loss'))
 
 class LRFinder(Callback):
     '''Learning rate finder callback 
     - adapted from fastai version to work in Keras and to optionally run over validation data'''
 
-    def __init__(self, nSteps, valData=None, valBatchSize=None, lrBounds=[1e-7, 10], verbose=0):
+    def __init__(self, n_steps, val_data=None, val_batch_size=None, lr_bounds=[1e-7, 10], verbose=0):
         super(LRFinder, self).__init__()
         self.verbose = verbose
-        self.lrBounds=lrBounds
-        ratio = self.lrBounds[1]/self.lrBounds[0]
-        self.lr_mult = ratio**(1/nSteps)
-        self.valData = valData
-        self.valBatchSize = valBatchSize
+        self.lr_bounds=lr_bounds
+        ratio = self.lr_bounds[1]/self.lr_bounds[0]
+        self.lr_mult = ratio**(1/n_steps)
+        self.val_data = val_data
+        self.val_batch_size = val_batch_size
         
     def on_train_begin(self, logs={}):
         self.best=1e9
         self.iter = 0
-        K.set_value(self.model.optimizer.lr, self.lrBounds[0])
+        K.set_value(self.model.optimizer.lr, self.lr_bounds[0])
         self.history = {}
         self.history['loss'] = []
         self.history['val_loss'] = []
         self.history['lr'] = []
         
     def calc_lr(self, lr, batch):
-        return self.lrBounds[0]*(self.lr_mult**batch)
+        return self.lr_bounds[0]*(self.lr_mult**batch)
     
     def plot(self, n_skip=0, n_max=-1, yLim=None):
         plt.figure(figsize=(16,8))
         plt.plot(self.history['lr'][n_skip:n_max], self.history['loss'][n_skip:n_max], label='Training loss', color='g')
-        if not isinstance(self.valData, type(None)):
+        if not isinstance(self.val_data, type(None)):
             plt.plot(self.history['lr'][n_skip:n_max], self.history['val_loss'][n_skip:n_max], label='Validation loss', color='b')
         
-        if np.log10(self.lrBounds[1])-np.log10(self.lrBounds[0]) >= 3:
+        if np.log10(self.lr_bounds[1])-np.log10(self.lr_bounds[0]) >= 3:
             plt.xscale('log')
         plt.ylim(yLim)
         plt.grid(True, which="both")
@@ -106,30 +106,34 @@ class LRFinder(Callback):
         
     def plot_lr(self):
         plt.figure(figsize=(4,4))
-        plt.xlabel("Iterations")
-        plt.ylabel("Learning rate")
+        plt.xlabel("Iterations", fontsize=24, color='black')
+        plt.ylabel("Learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.history['lr'])), self.history['lr'])
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
     
     def plot_genError(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("Iterations")
-        plt.ylabel("Generalisation Error")
+        plt.xlabel("Iterations", fontsize=24, color='black')
+        plt.ylabel("Generalisation Error", fontsize=24, color='black')
         plt.plot(range(len(self.history['lr'])), np.array(self.history['val_loss'])-np.array(self.history['loss']))
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
 
     def on_batch_end(self, batch, logs={}):
         loss = logs.get('loss')
         self.history['loss'].append(logs.get('loss'))
         
-        if not isinstance(self.valData, type(None)):
-            mbMask = np.zeros(len(self.valData['y']), dtype=int)
-            mbMask[:self.valBatchSize] = 1
-            np.random.shuffle(mbMask)
-            mbMask = mbMask.astype(bool)
-            self.history['val_loss'].append(self.model.evaluate(x=self.valData['x'][mbMask],
-                                                                y=self.valData['y'][mbMask],
-                                                                sample_weight=self.valData['sample_weight'][mbMask], 
+        if not isinstance(self.val_data, type(None)):
+            mb_mask = np.zeros(len(self.val_data['y']), dtype=int)
+            mb_mask[:self.val_batch_size] = 1
+            np.random.shuffle(mb_mask)
+            mb_mask = mb_mask.astype(bool)
+            self.history['val_loss'].append(self.model.evaluate(x=self.val_data['x'][mb_mask],
+                                                                y=self.val_data['y'][mb_mask],
+                                                                sample_weight=self.val_data['sample_weight'][mb_mask], 
                                                                 verbose=0))
                 
         self.history['lr'].append(float(K.get_value(self.model.optimizer.lr)))
@@ -149,19 +153,30 @@ class LRFinder(Callback):
 
 class LinearCLR(Callback):
     '''Cyclical learning rate callback with linear interpolation'''
+<<<<<<< HEAD:General/Callbacks.py
+    def __init__(self, nb, max_lr, min_lr, scale=2, reverse=False):
+=======
     def __init__(self, nb, maxLR, minLR, scale=2, reverse=False):
+>>>>>>> master:general/callbacks.py
         super(LinearCLR, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
         self.cycle_count = 0
         self.lrs = []
-        self.maxLR = maxLR
-        self.minLR = minLR
+        self.max_lr = max_lr
+        self.min_lr = min_lr
         self.reverse = reverse
         self.cycle_end = False
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
+<<<<<<< HEAD:General/Callbacks.py
+
+    def on_train_end(self, logs={}):
+        if self.plot_lr:
+            self.plot_lr()
+=======
+>>>>>>> master:general/callbacks.py
         
     def plot(self):
         plt.figure(figsize=(16,8))
@@ -175,11 +190,11 @@ class LinearCLR(Callback):
     def calc_lr(self, batch):
         cycle = math.floor(1+(self.cycle_iter/(2*self.nb)))
         x = np.abs((self.cycle_iter/self.nb)-(2*cycle)+1)
-        lr = self.minLR+((self.maxLR-self.minLR)*np.max([0, 1-x]))
+        lr = self.min_lr+((self.max_lr-self.min_lr)*np.max([0, 1-x]))
 
         self.cycle_iter += 1
         if self.reverse:
-            return self.maxLR-(lr-self.minLR)
+            return self.max_lr-(lr-self.min_lr)
         else:
             return lr
 
@@ -208,9 +223,11 @@ class CosAnnealLR(Callback):
         
     def plot(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("iterations")
-        plt.ylabel("learning rate")
+        plt.xlabel("iterations", fontsize=24, color='black')
+        plt.ylabel("learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.lrs)), self.lrs)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_lr(self, batch):
@@ -237,20 +254,31 @@ class CosAnnealLR(Callback):
 
 class LinearCMom(Callback):
     '''Cyclical momentum callback with linear interpolation'''
+<<<<<<< HEAD:General/Callbacks.py
+    def __init__(self, nb, max_mom, min_mom, scale=2, reverse=False, mode='sgd'):
+=======
     def __init__(self, nb, maxMom, minMom, scale=2, reverse=False, mode='sgd'):
+>>>>>>> master:general/callbacks.py
         super(LinearCMom, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
         self.cycle_count = 0
         self.moms = []
-        self.maxMom = maxMom
-        self.minMom = minMom
+        self.max_mom = max_mom
+        self.min_mom = min_mom
         self.reverse = reverse
         self.cycle_end = False
         self.mode = mode
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
+<<<<<<< HEAD:General/Callbacks.py
+
+    def on_train_end(self, logs={}):
+        if self.plot_mom:
+            self.plot_mom()
+=======
+>>>>>>> master:general/callbacks.py
         
     def plot(self):
         plt.figure(figsize=(16,8))
@@ -259,16 +287,18 @@ class LinearCMom(Callback):
         plt.xticks(fontsize=16, color='black')
         plt.yticks(fontsize=16, color='black')
         plt.plot(range(len(self.moms)), self.moms)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_mom(self, batch):
         cycle = math.floor(1+(self.cycle_iter/(2*self.nb)))
         x = np.abs((self.cycle_iter/self.nb)-(2*cycle)+1)
-        mom = self.minMom+((self.maxMom-self.minMom)*np.max([0, 1-x]))
+        mom = self.min_mom+((self.max_mom-self.min_mom)*np.max([0, 1-x]))
 
         self.cycle_iter += 1
         if not self.reverse:
-            return self.maxMom-(mom-self.minMom)
+            return self.max_mom-(mom-self.min_mom)
         else:
             return mom
 
@@ -280,9 +310,9 @@ class LinearCMom(Callback):
         elif self.mode == 'adam':
             K.set_value(self.model.optimizer.beta_1, mom)
 
-class CosAnnealMomentum(Callback):
+class CosAnnealMom(Callback):
     def __init__(self, nb, cycle_mult=1, reverse=False):
-        super(CosAnnealMomentum, self).__init__()
+        super(CosAnnealMom, self).__init__()
         self.nb = nb
         self.cycle_mult = cycle_mult
         self.cycle_iter = 0
@@ -299,9 +329,11 @@ class CosAnnealMomentum(Callback):
         
     def plot(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("iterations")
-        plt.ylabel("momentum")
+        plt.xlabel("iterations", fontsize=24, color='black')
+        plt.ylabel("momentum", fontsize=24, color='black')
         plt.plot(range(len(self.moms)), self.moms)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_momentum(self, batch):
@@ -323,14 +355,18 @@ class CosAnnealMomentum(Callback):
         K.set_value(self.model.optimizer.momentum, momentum)
 
 class OneCycle(Callback):
+<<<<<<< HEAD:General/Callbacks.py
+    def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lr_scale=10, mom_scale=0.1, mode='sgd'):
+=======
     def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lrScale=10, momScale=0.1, mode='adam'):
+>>>>>>> master:general/callbacks.py
         '''nb=number of minibatches per epoch, ratio=fraction of epoch spent in first stage,
-           lrScale=number used to divide initial LR to get minimum LR,
-           momScale=number to subtract from initial momentum to get minimum momentum'''
+           lr_scale=number used to divide initial LR to get minimum LR,
+           mom_scale=number to subtract from initial momentum to get minimum momentum'''
         super(OneCycle, self).__init__()
         self.nb = nb*scale
         self.ratio = ratio
-        self.nSteps = (math.ceil(self.nb*self.ratio), math.floor((1-self.ratio)*self.nb))
+        self.n_steps = (math.ceil(self.nb*self.ratio), math.floor((1-self.ratio)*self.nb))
         self.cycle_iter = 0
         self.cycle_count = 0
         self.lrs = []
@@ -339,72 +375,81 @@ class OneCycle(Callback):
         self.lr = -1
         self.reverse = reverse
         self.cycle_end = False
-        self.lrScale = lrScale
-        self.momScale = momScale
-        self.momStep1 = -self.momScale/float(self.nSteps[0])
-        self.momStep2 = self.momScale/float(self.nSteps[1])
+        self.lr_scale = lr_scale
+        self.mom_scale = mom_scale
+        self.mom_step_1 = -self.mom_scale/float(self.n_steps[0])
+        self.mom_step_2 = self.mom_scale/float(self.n_steps[1])
         self.mode = mode.lower()
 
     def on_train_begin(self, logs={}):
         if self.momentum == -1:
             if self.mode == 'sgd':
-                self.momMax = float(K.get_value(self.model.optimizer.momentum))
+                self.mom_max = float(K.get_value(self.model.optimizer.momentum))
             elif self.mode == 'adam':
-                self.momMax = float(K.get_value(self.model.optimizer.beta_1))
-            self.momMin = self.momMax-self.momScale
+                self.mom_max = float(K.get_value(self.model.optimizer.beta_1))
+            self.mom_min = self.mom_max-self.mom_scale
             if self.reverse: 
-                self.momentum = self.momMin
-                self.momStep1 *= -1
-                self.momStep2 *= -1
+                self.momentum = self.mom_min
+                self.mom_step_1 *= -1
+                self.mom_step_2 *= -1
                 if self.mode == 'sgd':
                     K.set_value(self.model.optimizer.momentum, self.momentum)
                 elif self.mode == 'adam':
                     K.set_value(self.model.optimizer.beta_1, self.momentum)
             else:
-                self.momentum = self.momMax
+                self.momentum = self.mom_max
 
-            self.momStep = self.momStep1
+            self.mom_step = self.mom_step_1
 
         if self.lr == -1:
-            self.lrMax = float(K.get_value(self.model.optimizer.lr))
-            self.lrMin = self.lrMax/self.lrScale
-            self.lrStep1 = (self.lrMax-self.lrMin)/self.nSteps[0]
-            self.lrStep2 = -(self.lrMax-self.lrMin)/self.nSteps[1]
+            self.lr_max = float(K.get_value(self.model.optimizer.lr))
+            self.lr_min = self.lr_max/self.lr_scale
+            self.lr_step_1 = (self.lr_max-self.lr_min)/self.n_steps[0]
+            self.lr_step_2 = -(self.lr_max-self.lr_min)/self.n_steps[1]
             if self.reverse:
-                self.lrStep1 *= -1
-                self.lrStep2 *= -1
-                self.lr = self.lrMax
+                self.lr_step_1 *= -1
+                self.lr_step_2 *= -1
+                self.lr = self.lr_max
             else:
-                self.lr = self.lrMin
+                self.lr = self.lr_min
                 K.set_value(self.model.optimizer.lr, self.lr)
 
-            self.lrStep = self.lrStep1
+            self.lr_step = self.lr_step_1
 
         self.moms.append(self.momentum)
         self.lrs.append(self.lr)
         self.cycle_end = False
+<<<<<<< HEAD:General/Callbacks.py
+
+    def plot_mom(self):
+        self.plot_lr()
+
+    def plot_lr(self):
+        fig, axs = plt.subplots(2,1,figsize=(16,4))
+=======
         
     def plot(self):
         _, axs = plt.subplots(2,1,figsize=(16,4))
+>>>>>>> master:general/callbacks.py
         for ax in axs:
-            ax.set_xlabel("Iterations")
-        axs[0].set_ylabel("Learning Rate")
-        axs[1].set_ylabel("Momentum")
+            ax.set_xlabel("Iterations", fontsize=24, color='black')
+        axs[0].set_ylabel("Learning Rate", fontsize=24, color='black')
+        axs[1].set_ylabel("Momentum", fontsize=24, color='black')
         axs[0].plot(range(len(self.lrs)), self.lrs)
         axs[1].plot(range(len(self.moms)), self.moms)
         plt.show()
         
     def calc(self, batch):
-        if self.cycle_iter == self.nSteps[0]+1:
-            self.lrStep = self.lrStep2
-            self.momStep = self.momStep2
+        if self.cycle_iter == self.n_steps[0]+1:
+            self.lr_step = self.lr_step_2
+            self.mom_step = self.mom_step_2
 
         if self.cycle_iter>=self.nb:
             self.lr/2
 
         else:
-            self.momentum += self.momStep
-            self.lr += self.lrStep
+            self.momentum += self.mom_step
+            self.lr += self.lr_step
 
         self.moms.append(self.momentum)
         self.lrs.append(self.lr)
@@ -420,8 +465,13 @@ class OneCycle(Callback):
 
 class SWA(Callback):
     '''Modified from fastai version'''
+<<<<<<< HEAD:General/Callbacks.py
+    def __init__(self, start, test_fold, test_model, verbose=False, renewal=-1,
+                 lr_callback=None, train_on_weights=False, sgd_replacement=False):
+=======
     def __init__(self, start, test_batch, test_model, verbose=False, renewal=-1,
                  clr_callback=None, train_on_weights=False, replace=False):
+>>>>>>> master:general/callbacks.py
         super(SWA, self).__init__()
         self.swa_model = None
         self.swa_model_new = None
@@ -432,12 +482,21 @@ class SWA(Callback):
         self.n_since_renewal = -1
         self.losses = {'swa':None, 'base':None}
         self.active = False
+<<<<<<< HEAD:General/Callbacks.py
+        self.test_fold = test_fold
+        self.weighted = train_on_weights
+        self.lr_callback = lr_callback
+        self.test_model = test_model
+        self.verbose = verbose
+        self.sgd_replacement = sgd_replacement
+=======
         self.test_batch = test_batch
         self.weighted = train_on_weights
         self.clr_callback = clr_callback
         self.test_model = test_model
         self.verbose = verbose
         self.replace = replace
+>>>>>>> master:general/callbacks.py
         
     def on_train_begin(self, logs={}):
         if isinstance(self.swa_model, type(None)):
@@ -453,11 +512,19 @@ class SWA(Callback):
         self.losses = {'swa':None, 'base':None}
 
     def on_epoch_end(self, metrics, logs={}):
+<<<<<<< HEAD:General/Callbacks.py
+        if (self.epoch + 1) >= self.start and (isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end):
+            if self.swa_n == 0 and not self.active:
+                print ("SWA beginning")
+                self.active = True
+            elif not isinstance(self.lr_callback, type(None)) and self.lr_callback.cycle_mult > 1:
+=======
         if (self.epoch + 1) >= self.start and (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end):
             if self.swa_n == 0 and not self.active:
                 print ("SWA beginning")
                 self.active = True
             elif not isinstance(self.clr_callback, type(None)) and self.clr_callback.cycle_mult > 1:
+>>>>>>> master:general/callbacks.py
                 print ("Updating average")
                 self.active = True
             self.update_average_model()
@@ -469,10 +536,17 @@ class SWA(Callback):
                 if self.n_since_renewal > self.cylcle_since_replacement*self.renewal and self.renewal > 0:
                     self.compareAverages()
             
+<<<<<<< HEAD:General/Callbacks.py
+        if isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end:
+            self.epoch += 1
+
+        if self.active and not (isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end or self.lr_callback.cycle_mult == 1):
+=======
         if isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end:
             self.epoch += 1
 
         if self.active and not (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end or self.clr_callback.cycle_mult == 1):
+>>>>>>> master:general/callbacks.py
             self.active = False
             
     def update_average_model(self):
@@ -494,6 +568,17 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
+<<<<<<< HEAD:General/Callbacks.py
+                self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
+            else:
+                self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
+        
+        self.test_model.set_weights(self.swa_model_new)
+        if self.weighted:
+            new_loss = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
+        else:
+            new_loss = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
+=======
                 self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
                 self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
@@ -503,18 +588,28 @@ class SWA(Callback):
             new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
         else:
             new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
+>>>>>>> master:general/callbacks.py
         
         print("Checking renewal swa model, current model: {}, new model: {}".format(self.losses['swa'], new_loss))
         if new_loss < self.losses['swa']:
             print("New model better, replacing\n____________________\n\n")
             self.losses['swa'] = new_loss
             self.swa_n = self.n_since_renewal
+<<<<<<< HEAD:General/Callbacks.py
+            if self.sgd_replacement:
+                if isinstance(self.losses['base'], type(None)):
+                    if self.weighted:
+                        self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
+                    else:
+                        self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
+=======
             if self.replace:
                 if isinstance(self.losses['base'], type(None)):
                     if self.weighted:
                         self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
                     else:
                         self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
+>>>>>>> master:general/callbacks.py
                 if self.losses['base'] > new_loss:
                     print("Old average better than current point, starting SGD from old average")
                     self.model.set_weights(self.swa_model)
@@ -540,6 +635,17 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
+<<<<<<< HEAD:General/Callbacks.py
+                self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
+            else:
+                self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
+        
+        if isinstance(self.losses['base'], type(None)):
+            if self.weighted:
+                self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
+            else:
+                self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
+=======
                 self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
                 self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
@@ -549,5 +655,6 @@ class SWA(Callback):
                 self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
             else:
                 self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
+>>>>>>> master:general/callbacks.py
         
         return self.losses

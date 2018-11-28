@@ -8,36 +8,44 @@ from keras.models import Sequential
 
 '''
 Todo:
+<<<<<<< HEAD:General/Models.py
+- Combine getM_model methods
+- Works out way to remove need for dense layer for continuous inputs in cat model
+'''
+
+def get_model(version, n_in, compile_args, mode, n_out=1):
+=======
 - Combine get_model methods
 - Works out way to remove need for dense layer for continuous inputs in cat model
 '''
 
 def get_model(version, nIn, compileArgs, mode, nOut=1):
+>>>>>>> master:general/models.py
     model = Sequential()
 
-    if 'depth' in compileArgs:
-        depth = compileArgs['depth']
+    if 'depth' in compile_args:
+        depth = compile_args['depth']
     else:
         depth = 3
-    if 'width' in compileArgs:
-        width = compileArgs['width']
+    if 'width' in compile_args:
+        width = compile_args['width']
     else:
         width = 100
-    if 'do' in compileArgs:
-        do = compileArgs['do']
+    if 'do' in compile_args:
+        do = compile_args['do']
     else:
         do = False
-    if 'bn' in compileArgs:
-        bn = compileArgs['bn']
+    if 'bn' in compile_args:
+        bn = compile_args['bn']
     else:
         bn = False
-    if 'l2' in compileArgs:
-        reg = l2(compileArgs['l2'])
+    if 'l2' in compile_args:
+        reg = l2(compile_args['l2'])
     else:
         reg = None
 
     if "modelRelu" in version:
-        model.add(Dense(width, input_dim=nIn, kernel_initializer='he_normal', kernel_regularizer=reg))
+        model.add(Dense(width, input_dim=n_in, kernel_initializer='he_normal', kernel_regularizer=reg))
         if bn == 'pre': model.add(BatchNormalization())
         model.add(Activation('relu'))
         if bn == 'post': model.add(BatchNormalization())
@@ -50,7 +58,7 @@ def get_model(version, nIn, compileArgs, mode, nOut=1):
             if do: model.add(Dropout(do))
 
     elif "modelSelu" in version:
-        model.add(Dense(width, input_dim=nIn, kernel_initializer='lecun_normal', kernel_regularizer=reg))
+        model.add(Dense(width, input_dim=n_in, kernel_initializer='lecun_normal', kernel_regularizer=reg))
         model.add(Activation('selu'))
         if do: model.add(AlphaDropout(do))
         for i in range(depth):
@@ -59,7 +67,7 @@ def get_model(version, nIn, compileArgs, mode, nOut=1):
             if do: model.add(AlphaDropout(do))
 
     elif "modelSwish" in version:
-        model.add(Dense(width, input_dim=nIn, kernel_initializer='he_normal', kernel_regularizer=reg))
+        model.add(Dense(width, input_dim=n_in, kernel_initializer='he_normal', kernel_regularizer=reg))
         if bn == 'pre': model.add(BatchNormalization())
         model.add(Activation('swish'))
         if bn == 'post': model.add(BatchNormalization())
@@ -72,29 +80,33 @@ def get_model(version, nIn, compileArgs, mode, nOut=1):
             if do: model.add(Dropout(do))
     
     if 'class' in mode:        
-        if nOut == 1:
+        if n_out == 1:
             model.add(Dense(1, activation='sigmoid', kernel_initializer='glorot_normal'))
         else:
-            model.add(Dense(nOut, activation='softmax', kernel_initializer='glorot_normal'))
+            model.add(Dense(n_out, activation='softmax', kernel_initializer='glorot_normal'))
 
     elif 'regress' in mode:
-        model.add(Dense(nOut, activation='linear', kernel_initializer='glorot_normal'))
+        model.add(Dense(n_out, activation='linear', kernel_initializer='glorot_normal'))
 
-    if 'lr' not in compileArgs: compileArgs['lr'] = 0.001
-    if compileArgs['optimizer'] == 'adam':
-        if 'amsgrad' not in compileArgs: compileArgs['amsgrad'] = False
-        if 'beta_1' not in compileArgs: compileArgs['beta_1'] = 0.9
-        optimiser = Adam(lr=compileArgs['lr'], beta_1=compileArgs['beta_1'], beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compileArgs['amsgrad'])
+    if 'lr' not in compile_args: compile_args['lr'] = 0.001
+    if compile_args['optimizer'] == 'adam':
+        if 'amsgrad' not in compile_args: compile_args['amsgrad'] = False
+        if 'beta_1' not in compile_args: compile_args['beta_1'] = 0.9
+        optimiser = Adam(lr=compile_args['lr'], beta_1=compile_args['beta_1'], beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compile_args['amsgrad'])
 
-    if compileArgs['optimizer'] == 'sgd':
-        if 'momentum' not in compileArgs: compileArgs['momentum'] = 0.9
-        if 'nesterov' not in compileArgs: compileArgs['nesterov'] = False
-        optimiser = SGD(lr=compileArgs['lr'], momentum=compileArgs['momentum'], decay=0.0, nesterov=compileArgs['nesterov'])
+    if compile_args['optimizer'] == 'sgd':
+        if 'momentum' not in compile_args: compile_args['momentum'] = 0.9
+        if 'nesterov' not in compile_args: compile_args['nesterov'] = False
+        optimiser = SGD(lr=compile_args['lr'], momentum=compile_args['momentum'], decay=0.0, nesterov=compile_args['nesterov'])
         
-    model.compile(loss=compileArgs['loss'], optimizer=optimiser)
+    model.compile(loss=compile_args['loss'], optimizer=optimiser)
     return model
 
+<<<<<<< HEAD:General/Models.py
+def get_cat_model(version, n_cont_n, compile_args, mode, n_out=1, cat_szs=[]):
+=======
 def get_cat_model(version, nContIn, compileArgs, mode, nOut=1, cat_szs=[]):
+>>>>>>> master:general/models.py
     #Categorical embeddings
     models = []
     for cat_sz in cat_szs:
@@ -105,31 +117,31 @@ def get_cat_model(version, nContIn, compileArgs, mode, nOut=1, cat_szs=[]):
         models.append(model)
     
     #Continuous inputs
-    if nContIn:
+    if n_cont_n:
         model = Sequential()
-        model.add(Dense(nContIn, input_dim=nContIn, kernel_initializer='glorot_normal'))
+        model.add(Dense(n_cont_n, input_dim=n_cont_n, kernel_initializer='glorot_normal'))
         models.append(model)
     
     merged = Concatenate()([x.output for x in models])
 
-    if 'depth' in compileArgs:
-        depth = compileArgs['depth']
+    if 'depth' in compile_args:
+        depth = compile_args['depth']
     else:
         depth = 3
-    if 'width' in compileArgs:
-        width = compileArgs['width']
+    if 'width' in compile_args:
+        width = compile_args['width']
     else:
         width = 100
-    if 'do' in compileArgs:
-        do = compileArgs['do']
+    if 'do' in compile_args:
+        do = compile_args['do']
     else:
         do = False
-    if 'bn' in compileArgs:
-        bn = compileArgs['bn']
+    if 'bn' in compile_args:
+        bn = compile_args['bn']
     else:
         bn = False
-    if 'l2' in compileArgs:
-        reg = l2(compileArgs['l2'])
+    if 'l2' in compile_args:
+        reg = l2(compile_args['l2'])
     else:
         reg = None
 
@@ -169,27 +181,27 @@ def get_cat_model(version, nContIn, compileArgs, mode, nOut=1, cat_szs=[]):
             if do: merged = Dropout(do)(merged)
     
     if 'class' in mode:        
-        if nOut == 1:
+        if n_out == 1:
             merged = Dense(1, activation='sigmoid', kernel_initializer='glorot_normal')(merged)
         else:
-            merged = Dense(nOut, activation='softmax', kernel_initializer='glorot_normal')(merged)
+            merged = Dense(n_out, activation='softmax', kernel_initializer='glorot_normal')(merged)
 
     elif 'regress' in mode:
-        merged = Dense(nOut, activation='linear', kernel_initializer='glorot_normal')(merged)
+        merged = Dense(n_out, activation='linear', kernel_initializer='glorot_normal')(merged)
         
     model = Model([x.input for x in models], merged)
 
-    if 'lr' not in compileArgs: compileArgs['lr'] = 0.001
-    if compileArgs['optimizer'] == 'adam':
-        if 'amsgrad' not in compileArgs: compileArgs['amsgrad'] = False
-        if 'beta_1' not in compileArgs: compileArgs['beta_1'] = 0.9
-        optimiser = Adam(lr=compileArgs['lr'], beta_1=compileArgs['beta_1'], beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compileArgs['amsgrad'])
+    if 'lr' not in compile_args: compile_args['lr'] = 0.001
+    if compile_args['optimizer'] == 'adam':
+        if 'amsgrad' not in compile_args: compile_args['amsgrad'] = False
+        if 'beta_1' not in compile_args: compile_args['beta_1'] = 0.9
+        optimiser = Adam(lr=compile_args['lr'], beta_1=compile_args['beta_1'], beta_2=0.999, epsilon=1e-08, decay=0.0, amsgrad=compile_args['amsgrad'])
 
-    if compileArgs['optimizer'] == 'sgd':
-        if 'momentum' not in compileArgs: compileArgs['momentum'] = 0.9
-        if 'nesterov' not in compileArgs: compileArgs['nesterov'] = False
-        optimiser = SGD(lr=compileArgs['lr'], momentum=compileArgs['momentum'], decay=0.0, nesterov=compileArgs['nesterov'])
+    if compile_args['optimizer'] == 'sgd':
+        if 'momentum' not in compile_args: compile_args['momentum'] = 0.9
+        if 'nesterov' not in compile_args: compile_args['nesterov'] = False
+        optimiser = SGD(lr=compile_args['lr'], momentum=compile_args['momentum'], decay=0.0, nesterov=compile_args['nesterov'])
     
     
-    model.compile(loss=compileArgs['loss'], optimizer=optimiser)
+    model.compile(loss=compile_args['loss'], optimizer=optimiser)
     return model
