@@ -280,7 +280,7 @@ def get_model_history_comparison_plot(histories, names, cv=False, log_y=False):
         plt.grid(True, which="both")
     plt.show()
 
-def ge_lr_finder_comparison_plot(lr_finders, names, logX=True, log_y=True, loss='loss', cut=-10):
+def get_lr_finder_comparison_plot(lr_finders, names, logX=True, log_y=True, loss='loss', cut=-10):
     '''Compare loss evolultion against learning rate for several LRFinder callbacks'''
     plt.figure(figsize=(16,8))
     

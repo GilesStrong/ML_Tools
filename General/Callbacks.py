@@ -106,16 +106,20 @@ class LRFinder(Callback):
         
     def plot_lr(self):
         plt.figure(figsize=(4,4))
-        plt.xlabel("Iterations")
-        plt.ylabel("Learning rate")
+        plt.xlabel("Iterations", fontsize=24, color='black')
+        plt.ylabel("Learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.history['lr'])), self.history['lr'])
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
     
     def plot_genError(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("Iterations")
-        plt.ylabel("Generalisation Error")
+        plt.xlabel("Iterations", fontsize=24, color='black')
+        plt.ylabel("Generalisation Error", fontsize=24, color='black')
         plt.plot(range(len(self.history['lr'])), np.array(self.history['val_loss'])-np.array(self.history['loss']))
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
 
     def on_batch_end(self, batch, logs={}):
@@ -192,10 +196,10 @@ class LinearCLR(Callback):
         self.lrs.append(lr)
         K.set_value(self.model.optimizer.lr, lr)
 
-class CosAnneal(Callback):
+class CosAnnealLR(Callback):
     '''Adapted from fastai version'''
     def __init__(self, nb, cycle_mult=1, reverse=False):
-        super(CosAnneal, self).__init__()
+        super(CosAnnealLR, self).__init__()
         self.nb = nb
         self.cycle_mult = cycle_mult
         self.cycle_iter = 0
@@ -212,9 +216,11 @@ class CosAnneal(Callback):
         
     def plot_lr(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("iterations")
-        plt.ylabel("learning rate")
+        plt.xlabel("iterations", fontsize=24, color='black')
+        plt.ylabel("learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.lrs)), self.lrs)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_lr(self, batch):
@@ -267,6 +273,8 @@ class LinearCMom(Callback):
         plt.xticks(fontsize=16, color='black')
         plt.yticks(fontsize=16, color='black')
         plt.plot(range(len(self.moms)), self.moms)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_mom(self, batch):
@@ -288,9 +296,9 @@ class LinearCMom(Callback):
         elif self.mode == 'adam':
             K.set_value(self.model.optimizer.beta_1, mom)
 
-class CosAnnealMomentum(Callback):
+class CosAnnealMom(Callback):
     def __init__(self, nb, cycle_mult=1, reverse=False):
-        super(CosAnnealMomentum, self).__init__()
+        super(CosAnnealMom, self).__init__()
         self.nb = nb
         self.cycle_mult = cycle_mult
         self.cycle_iter = 0
@@ -307,9 +315,11 @@ class CosAnnealMomentum(Callback):
         
     def plot_momentum(self):
         plt.figure(figsize=(16,8))
-        plt.xlabel("iterations")
-        plt.ylabel("momentum")
+        plt.xlabel("iterations", fontsize=24, color='black')
+        plt.ylabel("momentum", fontsize=24, color='black')
         plt.plot(range(len(self.moms)), self.moms)
+        plt.xticks(fontsize=16, color='black')
+        plt.yticks(fontsize=16, color='black')
         plt.show()
         
     def calc_momentum(self, batch):
@@ -391,13 +401,16 @@ class OneCycle(Callback):
         self.moms.append(self.momentum)
         self.lrs.append(self.lr)
         self.cycle_end = False
-        
-    def plot(self):
+
+    def plot_mom(self):
+        self.plot_lr()
+
+    def plot_lr(self):
         fig, axs = plt.subplots(2,1,figsize=(16,4))
         for ax in axs:
-            ax.set_xlabel("Iterations")
-        axs[0].set_ylabel("Learning Rate")
-        axs[1].set_ylabel("Momentum")
+            ax.set_xlabel("Iterations", fontsize=24, color='black')
+        axs[0].set_ylabel("Learning Rate", fontsize=24, color='black')
+        axs[1].set_ylabel("Momentum", fontsize=24, color='black')
         axs[0].plot(range(len(self.lrs)), self.lrs)
         axs[1].plot(range(len(self.moms)), self.moms)
         plt.show()

@@ -46,7 +46,7 @@ def get_fold(index, datafile):
 
 def get_folds(n, n_splits):
     train = [x for x in range(n_splits) if x != n]
-    #shuffle(train)
+    shuffle(train)
     return train
 
 def fold_lr_find(fold_yielder,
@@ -207,9 +207,9 @@ def fold_train_model(fold_yielder, n_models,
     n_folds = fold_yielder.n_folds
     nb = math.ceil(len(fold_yielder.source['fold_0/targets'])/train_params['batch_size'])
 
-    for model_num, test_id in enumerate([4]):#enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
+    for model_num, test_id in enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
         model_start = timeit.default_timer()
-        print ("Running fold", model_num+1, "/", n_models)
+        print ("Training model", model_num+1, "/", n_models)
         os.system(f"rm {saveloc}/best.h5")
         best = -1
         bestLR = -1
@@ -250,7 +250,7 @@ def fold_train_model(fold_yielder, n_models,
                 print("Using cosine LR annealing")
                 cycling = True
                 redux_decay = use_callbacks['CosAnnealLR']['redux_decay']
-                lr_cycler = CosAnneal(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'])
+                lr_cycler = CosAnnealLR(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'])
                 callbacks.append(lr_cycler)
 
             if 'LinearCMom' in use_callbacks:
@@ -262,7 +262,7 @@ def fold_train_model(fold_yielder, n_models,
             elif 'CosAnnealMom' in use_callbacks:
                 print("Using cosine momentum annealing")
                 cycling = True
-                mom_cycler = CosAnnealMomentum(**{'nb':nb, **use_callbacks['CosAnnealMom']})
+                mom_cycler = CosAnnealMom(**{'nb':nb, **use_callbacks['CosAnnealMom']})
                 callbacks.append(mom_cycler)
   
             if 'SWA' in use_callbacks:
@@ -278,13 +278,10 @@ def fold_train_model(fold_yielder, n_models,
                 callbacks.append(swa)
         use_swa = False
 
-        print(trainID)
         for epoch in range(max_epochs):
-            
             for n in trainID: #Loop through training folds
                 train_fold = fold_yielder.get_fold(n) #Load fold data
                 subEpoch += 1
-                print(n)
                 if binary == None: #First run, check classification mode
                     binary = True
                     n_classes = len(np.unique(train_fold['targets']))
