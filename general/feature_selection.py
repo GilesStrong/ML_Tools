@@ -16,17 +16,11 @@ sns.set_style("white")
 
 from .pre_proc import get_pre_proc_pipes
 
-<<<<<<< HEAD:General/Feature_Selection.py
+
 def rank_classifier_feats(data, train_feats, n_splits=10, n_jobs=4, weights=None, target='gen_target', datatype='float32'):
     input_pipe, _ = get_pre_proc_pipes(norm_in=True)
     input_pipe.fit(data[train_feats].values.astype(datatype))
     X = input_pipe.transform(data[train_feats].values.astype(datatype))
-=======
-def rank_classifier_features(data, trainFeatures, nSplits=10, nJobs=4, weights=None, target='gen_target', datatype='float32'):
-    inputPipe, _ = get_pre_proc_pipes(normIn=True)
-    inputPipe.fit(data[trainFeatures].values.astype(datatype))
-    X = inputPipe.transform(data[trainFeatures].values.astype(datatype))
->>>>>>> master:general/feature_selection.py
     y = data[target].values.astype('int')
     
     if weights != None:

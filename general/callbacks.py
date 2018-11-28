@@ -153,11 +153,7 @@ class LRFinder(Callback):
 
 class LinearCLR(Callback):
     '''Cyclical learning rate callback with linear interpolation'''
-<<<<<<< HEAD:General/Callbacks.py
     def __init__(self, nb, max_lr, min_lr, scale=2, reverse=False):
-=======
-    def __init__(self, nb, maxLR, minLR, scale=2, reverse=False):
->>>>>>> master:general/callbacks.py
         super(LinearCLR, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
@@ -170,15 +166,8 @@ class LinearCLR(Callback):
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
-<<<<<<< HEAD:General/Callbacks.py
-
-    def on_train_end(self, logs={}):
-        if self.plot_lr:
-            self.plot_lr()
-=======
->>>>>>> master:general/callbacks.py
         
-    def plot(self):
+    def plot_lr(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("learning rate", fontsize=24, color='black')
@@ -254,11 +243,7 @@ class CosAnnealLR(Callback):
 
 class LinearCMom(Callback):
     '''Cyclical momentum callback with linear interpolation'''
-<<<<<<< HEAD:General/Callbacks.py
     def __init__(self, nb, max_mom, min_mom, scale=2, reverse=False, mode='sgd'):
-=======
-    def __init__(self, nb, maxMom, minMom, scale=2, reverse=False, mode='sgd'):
->>>>>>> master:general/callbacks.py
         super(LinearCMom, self).__init__()
         self.nb = nb*scale
         self.cycle_iter = 0
@@ -272,15 +257,8 @@ class LinearCMom(Callback):
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
-<<<<<<< HEAD:General/Callbacks.py
-
-    def on_train_end(self, logs={}):
-        if self.plot_mom:
-            self.plot_mom()
-=======
->>>>>>> master:general/callbacks.py
         
-    def plot(self):
+    def plot_mom(self):
         plt.figure(figsize=(16,8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("momentum", fontsize=24, color='black')
@@ -355,11 +333,7 @@ class CosAnnealMom(Callback):
         K.set_value(self.model.optimizer.momentum, momentum)
 
 class OneCycle(Callback):
-<<<<<<< HEAD:General/Callbacks.py
     def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lr_scale=10, mom_scale=0.1, mode='sgd'):
-=======
-    def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lrScale=10, momScale=0.1, mode='adam'):
->>>>>>> master:general/callbacks.py
         '''nb=number of minibatches per epoch, ratio=fraction of epoch spent in first stage,
            lr_scale=number used to divide initial LR to get minimum LR,
            mom_scale=number to subtract from initial momentum to get minimum momentum'''
@@ -419,18 +393,12 @@ class OneCycle(Callback):
         self.moms.append(self.momentum)
         self.lrs.append(self.lr)
         self.cycle_end = False
-<<<<<<< HEAD:General/Callbacks.py
 
     def plot_mom(self):
         self.plot_lr()
 
     def plot_lr(self):
         fig, axs = plt.subplots(2,1,figsize=(16,4))
-=======
-        
-    def plot(self):
-        _, axs = plt.subplots(2,1,figsize=(16,4))
->>>>>>> master:general/callbacks.py
         for ax in axs:
             ax.set_xlabel("Iterations", fontsize=24, color='black')
         axs[0].set_ylabel("Learning Rate", fontsize=24, color='black')
@@ -465,13 +433,8 @@ class OneCycle(Callback):
 
 class SWA(Callback):
     '''Modified from fastai version'''
-<<<<<<< HEAD:General/Callbacks.py
     def __init__(self, start, test_fold, test_model, verbose=False, renewal=-1,
                  lr_callback=None, train_on_weights=False, sgd_replacement=False):
-=======
-    def __init__(self, start, test_batch, test_model, verbose=False, renewal=-1,
-                 clr_callback=None, train_on_weights=False, replace=False):
->>>>>>> master:general/callbacks.py
         super(SWA, self).__init__()
         self.swa_model = None
         self.swa_model_new = None
@@ -482,21 +445,12 @@ class SWA(Callback):
         self.n_since_renewal = -1
         self.losses = {'swa':None, 'base':None}
         self.active = False
-<<<<<<< HEAD:General/Callbacks.py
         self.test_fold = test_fold
         self.weighted = train_on_weights
         self.lr_callback = lr_callback
         self.test_model = test_model
         self.verbose = verbose
         self.sgd_replacement = sgd_replacement
-=======
-        self.test_batch = test_batch
-        self.weighted = train_on_weights
-        self.clr_callback = clr_callback
-        self.test_model = test_model
-        self.verbose = verbose
-        self.replace = replace
->>>>>>> master:general/callbacks.py
         
     def on_train_begin(self, logs={}):
         if isinstance(self.swa_model, type(None)):
@@ -512,19 +466,11 @@ class SWA(Callback):
         self.losses = {'swa':None, 'base':None}
 
     def on_epoch_end(self, metrics, logs={}):
-<<<<<<< HEAD:General/Callbacks.py
         if (self.epoch + 1) >= self.start and (isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end):
             if self.swa_n == 0 and not self.active:
                 print ("SWA beginning")
                 self.active = True
             elif not isinstance(self.lr_callback, type(None)) and self.lr_callback.cycle_mult > 1:
-=======
-        if (self.epoch + 1) >= self.start and (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end):
-            if self.swa_n == 0 and not self.active:
-                print ("SWA beginning")
-                self.active = True
-            elif not isinstance(self.clr_callback, type(None)) and self.clr_callback.cycle_mult > 1:
->>>>>>> master:general/callbacks.py
                 print ("Updating average")
                 self.active = True
             self.update_average_model()
@@ -536,17 +482,10 @@ class SWA(Callback):
                 if self.n_since_renewal > self.cylcle_since_replacement*self.renewal and self.renewal > 0:
                     self.compareAverages()
             
-<<<<<<< HEAD:General/Callbacks.py
         if isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end:
             self.epoch += 1
 
         if self.active and not (isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end or self.lr_callback.cycle_mult == 1):
-=======
-        if isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end:
-            self.epoch += 1
-
-        if self.active and not (isinstance(self.clr_callback, type(None)) or self.clr_callback.cycle_end or self.clr_callback.cycle_mult == 1):
->>>>>>> master:general/callbacks.py
             self.active = False
             
     def update_average_model(self):
@@ -568,7 +507,6 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
-<<<<<<< HEAD:General/Callbacks.py
                 self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
             else:
                 self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
@@ -578,38 +516,18 @@ class SWA(Callback):
             new_loss = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
         else:
             new_loss = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
-=======
-                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
-            else:
-                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
-        
-        self.test_model.set_weights(self.swa_model_new)
-        if self.weighted:
-            new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
-        else:
-            new_loss = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
->>>>>>> master:general/callbacks.py
         
         print("Checking renewal swa model, current model: {}, new model: {}".format(self.losses['swa'], new_loss))
         if new_loss < self.losses['swa']:
             print("New model better, replacing\n____________________\n\n")
             self.losses['swa'] = new_loss
             self.swa_n = self.n_since_renewal
-<<<<<<< HEAD:General/Callbacks.py
             if self.sgd_replacement:
                 if isinstance(self.losses['base'], type(None)):
                     if self.weighted:
                         self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
                     else:
                         self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
-=======
-            if self.replace:
-                if isinstance(self.losses['base'], type(None)):
-                    if self.weighted:
-                        self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
-                    else:
-                        self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
->>>>>>> master:general/callbacks.py
                 if self.losses['base'] > new_loss:
                     print("Old average better than current point, starting SGD from old average")
                     self.model.set_weights(self.swa_model)
@@ -635,7 +553,6 @@ class SWA(Callback):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:
-<<<<<<< HEAD:General/Callbacks.py
                 self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
             else:
                 self.losses['swa'] = self.test_model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
@@ -645,16 +562,5 @@ class SWA(Callback):
                 self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], sample_weight=self.test_fold['weights'], verbose=0)
             else:
                 self.losses['base'] = self.model.evaluate(self.test_fold['inputs'], self.test_fold['targets'], verbose=0)
-=======
-                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
-            else:
-                self.losses['swa'] = self.test_model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
-        
-        if isinstance(self.losses['base'], type(None)):
-            if self.weighted:
-                self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], sample_weight=self.test_batch['weights'], verbose=0)
-            else:
-                self.losses['base'] = self.model.evaluate(self.test_batch['inputs'], self.test_batch['targets'], verbose=0)
->>>>>>> master:general/callbacks.py
         
         return self.losses
