@@ -5,11 +5,11 @@ from keras import backend as K
 
 import math
 import numpy as np
-import types
 
 import seaborn as sns
 import matplotlib.pyplot as plt
 sns.set_style("whitegrid")
+
 
 class ValidationMonitor(Callback):
     '''Callback to monitor validation performance and optimiser settings after every minibatch
@@ -49,6 +49,7 @@ class ValidationMonitor(Callback):
         elif self.mode == 'adam':
             self.history['mom'].append(float(K.get_value(self.model.optimizer.beta_1)))
 
+
 class LossHistory(Callback):
     def __init__(self, train_data):
         self.train_data = train_data
@@ -62,6 +63,7 @@ class LossHistory(Callback):
         self.losses['loss'].append(self.model.evaluate(self.train_data[0], self.train_data[1], verbose=0))
         self.losses['val_loss'].append(logs.get('val_loss'))
 
+
 class LRFinder(Callback):
     '''Learning rate finder callback 
     - adapted from fastai version to work in Keras and to optionally run over validation data'''
@@ -69,14 +71,14 @@ class LRFinder(Callback):
     def __init__(self, n_steps, val_data=None, val_batch_size=None, lr_bounds=[1e-7, 10], verbose=0):
         super(LRFinder, self).__init__()
         self.verbose = verbose
-        self.lr_bounds=lr_bounds
-        ratio = self.lr_bounds[1]/self.lr_bounds[0]
-        self.lr_mult = ratio**(1/n_steps)
+        self.lr_bounds = lr_bounds
+        ratio = self.lr_bounds[1] / self.lr_bounds[0]
+        self.lr_mult = ratio ** (1 / n_steps)
         self.val_data = val_data
         self.val_batch_size = val_batch_size
         
     def on_train_begin(self, logs={}):
-        self.best=1e9
+        self.best = 1e9
         self.iter = 0
         K.set_value(self.model.optimizer.lr, self.lr_bounds[0])
         self.history = {}
@@ -85,15 +87,15 @@ class LRFinder(Callback):
         self.history['lr'] = []
         
     def calc_lr(self, lr, batch):
-        return self.lr_bounds[0]*(self.lr_mult**batch)
+        return self.lr_bounds[0] * (self.lr_mult**batch)
     
     def plot(self, n_skip=0, n_max=-1, yLim=None):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.plot(self.history['lr'][n_skip:n_max], self.history['loss'][n_skip:n_max], label='Training loss', color='g')
         if not isinstance(self.val_data, type(None)):
             plt.plot(self.history['lr'][n_skip:n_max], self.history['val_loss'][n_skip:n_max], label='Validation loss', color='b')
         
-        if np.log10(self.lr_bounds[1])-np.log10(self.lr_bounds[0]) >= 3:
+        if np.log10(self.lr_bounds[1]) - np.log10(self.lr_bounds[0]) >= 3:
             plt.xscale('log')
         plt.ylim(yLim)
         plt.grid(True, which="both")
@@ -105,7 +107,7 @@ class LRFinder(Callback):
         plt.show()
         
     def plot_lr(self):
-        plt.figure(figsize=(4,4))
+        plt.figure(figsize=(4, 4))
         plt.xlabel("Iterations", fontsize=24, color='black')
         plt.ylabel("Learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.history['lr'])), self.history['lr'])
@@ -114,10 +116,10 @@ class LRFinder(Callback):
         plt.show()
     
     def plot_genError(self):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.xlabel("Iterations", fontsize=24, color='black')
         plt.ylabel("Generalisation Error", fontsize=24, color='black')
-        plt.plot(range(len(self.history['lr'])), np.array(self.history['val_loss'])-np.array(self.history['loss']))
+        plt.plot(range(len(self.history['lr'])), np.array(self.history['val_loss']) - np.array(self.history['loss']))
         plt.xticks(fontsize=16, color='black')
         plt.yticks(fontsize=16, color='black')
         plt.show()
@@ -145,17 +147,19 @@ class LRFinder(Callback):
             print('Batch %05d: LearningRateFinder increasing learning '
                   'rate to %s.' % (self.iter, lr))
         
-        if math.isnan(loss) or loss>self.best*10:
+        if math.isnan(loss) or loss > self.best * 10:
             if self.verbose > 0:
                 print('Ending training early due to loss increase')
             self.model.stop_training = True
-        if (loss<self.best and self.iter>10): self.best=loss
+        if (loss < self.best and self.iter > 10):
+            self.best = loss
+
 
 class LinearCLR(Callback):
     '''Cyclical learning rate callback with linear interpolation'''
     def __init__(self, nb, max_lr, min_lr, scale=2, reverse=False):
         super(LinearCLR, self).__init__()
-        self.nb = nb*scale
+        self.nb = nb * scale
         self.cycle_iter = 0
         self.cycle_count = 0
         self.lrs = []
@@ -168,7 +172,7 @@ class LinearCLR(Callback):
         self.cycle_end = False
         
     def plot_lr(self):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("learning rate", fontsize=24, color='black')
         plt.xticks(fontsize=16, color='black')
@@ -177,13 +181,13 @@ class LinearCLR(Callback):
         plt.show()
         
     def calc_lr(self, batch):
-        cycle = math.floor(1+(self.cycle_iter/(2*self.nb)))
-        x = np.abs((self.cycle_iter/self.nb)-(2*cycle)+1)
-        lr = self.min_lr+((self.max_lr-self.min_lr)*np.max([0, 1-x]))
+        cycle = math.floor(1 + (self.cycle_iter / (2 * self.nb)))
+        x = np.abs((self.cycle_iter / self.nb) - (2 * cycle) + 1)
+        lr = self.min_lr + ((self.max_lr - self.min_lr) * np.max([0, 1 - x]))
 
         self.cycle_iter += 1
         if self.reverse:
-            return self.max_lr-(lr-self.min_lr)
+            return self.max_lr - (lr - self.min_lr)
         else:
             return lr
 
@@ -191,6 +195,7 @@ class LinearCLR(Callback):
         lr = self.calc_lr(batch)
         self.lrs.append(lr)
         K.set_value(self.model.optimizer.lr, lr)
+
 
 class CosAnnealLR(Callback):
     '''Adapted from fastai version'''
@@ -211,7 +216,7 @@ class CosAnnealLR(Callback):
         self.cycle_end = False
         
     def plot(self):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("learning rate", fontsize=24, color='black')
         plt.plot(range(len(self.lrs)), self.lrs)
@@ -224,15 +229,15 @@ class CosAnnealLR(Callback):
             self.cycle_iter += 1
             return self.lr/100.'''
 
-        cos_out = np.cos(np.pi*(self.cycle_iter)/self.nb) + 1
+        cos_out = np.cos(np.pi * (self.cycle_iter) / self.nb) + 1
         self.cycle_iter += 1
-        if self.cycle_iter==self.nb:
+        if self.cycle_iter == self.nb:
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             self.cycle_count += 1
             self.cycle_end = True
         if self.reverse:
-            return self.lr-(self.lr / 2 * cos_out)
+            return self.lr - (self.lr / 2 * cos_out)
         else:
             return self.lr / 2 * cos_out
 
@@ -241,11 +246,12 @@ class CosAnnealLR(Callback):
         self.lrs.append(lr)
         K.set_value(self.model.optimizer.lr, lr)
 
+
 class LinearCMom(Callback):
     '''Cyclical momentum callback with linear interpolation'''
     def __init__(self, nb, max_mom, min_mom, scale=2, reverse=False, mode='sgd'):
         super(LinearCMom, self).__init__()
-        self.nb = nb*scale
+        self.nb = nb * scale
         self.cycle_iter = 0
         self.cycle_count = 0
         self.moms = []
@@ -259,7 +265,7 @@ class LinearCMom(Callback):
         self.cycle_end = False
         
     def plot_mom(self):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("momentum", fontsize=24, color='black')
         plt.xticks(fontsize=16, color='black')
@@ -270,13 +276,13 @@ class LinearCMom(Callback):
         plt.show()
         
     def calc_mom(self, batch):
-        cycle = math.floor(1+(self.cycle_iter/(2*self.nb)))
-        x = np.abs((self.cycle_iter/self.nb)-(2*cycle)+1)
-        mom = self.min_mom+((self.max_mom-self.min_mom)*np.max([0, 1-x]))
+        cycle = math.floor(1 + (self.cycle_iter / (2 * self.nb)))
+        x = np.abs((self.cycle_iter / self.nb) - (2 * cycle) + 1)
+        mom = self.min_mom + ((self.max_mom - self.min_mom) * np.max([0, 1 - x]))
 
         self.cycle_iter += 1
         if not self.reverse:
-            return self.max_mom-(mom-self.min_mom)
+            return self.max_mom - (mom - self.min_mom)
         else:
             return mom
 
@@ -287,6 +293,7 @@ class LinearCMom(Callback):
             K.set_value(self.model.optimizer.momentum, mom)
         elif self.mode == 'adam':
             K.set_value(self.model.optimizer.beta_1, mom)
+
 
 class CosAnnealMom(Callback):
     def __init__(self, nb, cycle_mult=1, reverse=False):
@@ -306,7 +313,7 @@ class CosAnnealMom(Callback):
         self.cycle_end = False
         
     def plot(self):
-        plt.figure(figsize=(16,8))
+        plt.figure(figsize=(16, 8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("momentum", fontsize=24, color='black')
         plt.plot(range(len(self.moms)), self.moms)
@@ -315,22 +322,23 @@ class CosAnnealMom(Callback):
         plt.show()
         
     def calc_momentum(self, batch):
-        cos_out = np.cos(np.pi*(self.cycle_iter)/self.nb) + 1
+        cos_out = np.cos(np.pi * (self.cycle_iter) / self.nb) + 1
         self.cycle_iter += 1
-        if self.cycle_iter==self.nb:
+        if self.cycle_iter == self.nb:
             self.cycle_iter = 0
             self.nb *= self.cycle_mult
             self.cycle_count += 1
             self.cycle_end = True
         if self.reverse:
-            return self.momentum-(self.momentum / 10 * cos_out)
+            return self.momentum - (self.momentum / 10 * cos_out)
         else:
-            return (self.momentum-(self.momentum / 5))+self.momentum / 10 * cos_out
+            return (self.momentum - (self.momentum / 5)) + self.momentum / 10 * cos_out
 
     def on_batch_end(self, batch, logs={}):
         momentum = self.calc_momentum(batch)
         self.moms.append(momentum)
         K.set_value(self.model.optimizer.momentum, momentum)
+
 
 class OneCycle(Callback):
     def __init__(self, nb, scale=30, ratio=0.5, reverse=False, lr_scale=10, mom_scale=0.1, mode='sgd'):
@@ -338,9 +346,9 @@ class OneCycle(Callback):
            lr_scale=number used to divide initial LR to get minimum LR,
            mom_scale=number to subtract from initial momentum to get minimum momentum'''
         super(OneCycle, self).__init__()
-        self.nb = nb*scale
+        self.nb = nb * scale
         self.ratio = ratio
-        self.n_steps = (math.ceil(self.nb*self.ratio), math.floor((1-self.ratio)*self.nb))
+        self.n_steps = (math.ceil(self.nb * self.ratio), math.floor((1 - self.ratio) * self.nb))
         self.cycle_iter = 0
         self.cycle_count = 0
         self.lrs = []
@@ -351,8 +359,8 @@ class OneCycle(Callback):
         self.cycle_end = False
         self.lr_scale = lr_scale
         self.mom_scale = mom_scale
-        self.mom_step_1 = -self.mom_scale/float(self.n_steps[0])
-        self.mom_step_2 = self.mom_scale/float(self.n_steps[1])
+        self.mom_step_1 = -self.mom_scale / float(self.n_steps[0])
+        self.mom_step_2 = self.mom_scale / float(self.n_steps[1])
         self.mode = mode.lower()
 
     def on_train_begin(self, logs={}):
@@ -361,7 +369,7 @@ class OneCycle(Callback):
                 self.mom_max = float(K.get_value(self.model.optimizer.momentum))
             elif self.mode == 'adam':
                 self.mom_max = float(K.get_value(self.model.optimizer.beta_1))
-            self.mom_min = self.mom_max-self.mom_scale
+            self.mom_min = self.mom_max - self.mom_scale
             if self.reverse: 
                 self.momentum = self.mom_min
                 self.mom_step_1 *= -1
@@ -377,9 +385,9 @@ class OneCycle(Callback):
 
         if self.lr == -1:
             self.lr_max = float(K.get_value(self.model.optimizer.lr))
-            self.lr_min = self.lr_max/self.lr_scale
-            self.lr_step_1 = (self.lr_max-self.lr_min)/self.n_steps[0]
-            self.lr_step_2 = -(self.lr_max-self.lr_min)/self.n_steps[1]
+            self.lr_min = self.lr_max / self.lr_scale
+            self.lr_step_1 = (self.lr_max - self.lr_min) / self.n_steps[0]
+            self.lr_step_2 = -(self.lr_max - self.lr_min) / self.n_steps[1]
             if self.reverse:
                 self.lr_step_1 *= -1
                 self.lr_step_2 *= -1
@@ -398,7 +406,7 @@ class OneCycle(Callback):
         self.plot_lr()
 
     def plot_lr(self):
-        fig, axs = plt.subplots(2,1,figsize=(16,4))
+        fig, axs = plt.subplots(2, 1, figsize=(16, 4))
         for ax in axs:
             ax.set_xlabel("Iterations", fontsize=24, color='black')
         axs[0].set_ylabel("Learning Rate", fontsize=24, color='black')
@@ -408,12 +416,12 @@ class OneCycle(Callback):
         plt.show()
         
     def calc(self, batch):
-        if self.cycle_iter == self.n_steps[0]+1:
+        if self.cycle_iter == self.n_steps[0] + 1:
             self.lr_step = self.lr_step_2
             self.mom_step = self.mom_step_2
 
-        if self.cycle_iter>=self.nb:
-            self.lr/2
+        if self.cycle_iter >= self.nb:
+            self.lr / 2
 
         else:
             self.momentum += self.mom_step
@@ -431,6 +439,7 @@ class OneCycle(Callback):
             K.set_value(self.model.optimizer.beta_1, self.momentum)
         K.set_value(self.model.optimizer.lr, self.lr)
 
+
 class SWA(Callback):
     '''Modified from fastai version'''
     def __init__(self, start, test_fold, test_model, verbose=False, renewal=-1,
@@ -443,7 +452,7 @@ class SWA(Callback):
         self.swa_n = -1
         self.renewal = renewal
         self.n_since_renewal = -1
-        self.losses = {'swa':None, 'base':None}
+        self.losses = {'swa': None, 'base': None}
         self.active = False
         self.test_fold = test_fold
         self.weighted = train_on_weights
@@ -459,19 +468,19 @@ class SWA(Callback):
             self.epoch = 0
             self.swa_n = 0
             self.n_since_renewal = 0
-            self.first_completed= False
+            self.first_completed = False
             self.cylcle_since_replacement = 1
             
     def on_epoch_begin(self, metrics, logs={}):
-        self.losses = {'swa':None, 'base':None}
+        self.losses = {'swa': None, 'base': None}
 
     def on_epoch_end(self, metrics, logs={}):
         if (self.epoch + 1) >= self.start and (isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end):
             if self.swa_n == 0 and not self.active:
-                print ("SWA beginning")
+                print("SWA beginning")
                 self.active = True
             elif not isinstance(self.lr_callback, type(None)) and self.lr_callback.cycle_mult > 1:
-                print ("Updating average")
+                print("Updating average")
                 self.active = True
             self.update_average_model()
             self.swa_n += 1
@@ -479,7 +488,7 @@ class SWA(Callback):
             if self.swa_n > self.renewal:
                 self.first_completed = True
                 self.n_since_renewal += 1
-                if self.n_since_renewal > self.cylcle_since_replacement*self.renewal and self.renewal > 0:
+                if self.n_since_renewal > self.cylcle_since_replacement * self.renewal and self.renewal > 0:
                     self.compareAverages()
             
         if isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end:
@@ -548,7 +557,6 @@ class SWA(Callback):
             self.test_model.set_weights(self.swa_model)
             self.cylcle_since_replacement += 1
                 
-    
     def get_losses(self):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)

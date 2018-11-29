@@ -1,18 +1,18 @@
 from __future__ import division
 
-from keras.models import Sequential, Model, model_from_json, load_model
-from keras.layers import Dense, Activation, AlphaDropout, Dropout, BatchNormalization,  Concatenate, Embedding, Input, Reshape
-from keras.optimizers import *
-from keras.regularizers import *
-from keras.models import Sequential
+from keras.models import Sequential, Model
+from keras.layers import Dense, Activation, AlphaDropout, Dropout, BatchNormalization, Concatenate, Embedding, Reshape
+from keras.optimizers import Adam, SGD
+from keras.regularizers import l2
 
-from .activations import *
+from .activations import swish
 
 '''
 Todo:
 - Combine get_model methods
 - Works out way to remove need for dense layer for continuous inputs in cat model
 '''
+
 
 def get_model(version, n_in, compile_args, mode, n_out=1):
     model = Sequential()
@@ -96,17 +96,18 @@ def get_model(version, n_in, compile_args, mode, n_out=1):
     model.compile(loss=compile_args['loss'], optimizer=optimiser)
     return model
 
+
 def get_cat_model(version, n_cont_n, compile_args, mode, n_out=1, cat_szs=[]):
-    #Categorical embeddings
+    # Categorical embeddings
     models = []
     for cat_sz in cat_szs:
         model = Sequential()
-        embedding_size = min((cat_sz+1)//2, 50)
+        embedding_size = min((cat_sz + 1) // 2, 50)
         model.add(Embedding(cat_sz, embedding_size, input_length=1))
         model.add(Reshape(target_shape=(embedding_size,)))
         models.append(model)
     
-    #Continuous inputs
+    # Continuous inputs
     if n_cont_n:
         model = Sequential()
         model.add(Dense(n_cont_n, input_dim=n_cont_n, kernel_initializer='glorot_normal'))
@@ -191,7 +192,6 @@ def get_cat_model(version, n_cont_n, compile_args, mode, n_out=1, cat_szs=[]):
         if 'momentum' not in compile_args: compile_args['momentum'] = 0.9
         if 'nesterov' not in compile_args: compile_args['nesterov'] = False
         optimiser = SGD(lr=compile_args['lr'], momentum=compile_args['momentum'], decay=0.0, nesterov=compile_args['nesterov'])
-    
     
     model.compile(loss=compile_args['loss'], optimizer=optimiser)
     return model
