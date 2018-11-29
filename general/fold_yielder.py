@@ -8,7 +8,6 @@ import pandas as pd
 Todo:
 - Ammend HEP yielder to work with categorical features
 - Include getFeature in FoldYielder
-- Tidy code and move to PEP 8
 - Add docstrings and stuff
 - Add method to FoldYielder to import other data into correct format, e.g. csv
 - Generalise get_fold_df

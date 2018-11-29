@@ -6,9 +6,11 @@ from keras.optimizers import *
 from keras.regularizers import *
 from keras.models import Sequential
 
+from .activations import *
+
 '''
 Todo:
-- Combine getM_model methods
+- Combine get_model methods
 - Works out way to remove need for dense layer for continuous inputs in cat model
 '''
 
@@ -61,13 +63,13 @@ def get_model(version, n_in, compile_args, mode, n_out=1):
     elif "modelSwish" in version:
         model.add(Dense(width, input_dim=n_in, kernel_initializer='he_normal', kernel_regularizer=reg))
         if bn == 'pre': model.add(BatchNormalization())
-        model.add(Activation('swish'))
+        model.add(Activation(swish))
         if bn == 'post': model.add(BatchNormalization())
         if do: model.add(Dropout(do))
         for i in range(depth):
             model.add(Dense(width, kernel_initializer='he_normal', kernel_regularizer=reg))
             if bn == 'pre': model.add(BatchNormalization())
-            model.add(Activation('swish'))
+            model.add(Activation(swish))
             if bn == 'post': model.add(BatchNormalization())
             if do: model.add(Dropout(do))
     
@@ -158,13 +160,13 @@ def get_cat_model(version, n_cont_n, compile_args, mode, n_out=1, cat_szs=[]):
     elif "modelSwish" in version:
         merged = Dense(width, kernel_initializer='he_normal', kernel_regularizer=reg)(merged)
         if bn == 'pre': merged = BatchNormalization()(merged)
-        merged = Activation('swish')(merged)
+        merged = Activation(swish)(merged)
         if bn == 'post': merged = BatchNormalization()(merged)
         if do: merged = Dropout(do)(merged)
         for i in range(depth):
             merged = Dense(width, kernel_initializer='he_normal', kernel_regularizer=reg)(merged)
             if bn == 'pre': merged = BatchNormalization()(merged)
-            merged = Activation('swish')(merged)
+            merged = Activation(swish)(merged)
             if bn == 'post': merged = BatchNormalization()(merged)
             if do: merged = Dropout(do)(merged)
     

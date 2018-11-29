@@ -401,12 +401,12 @@ def fold_train_model(fold_yielder, n_models,
             results[-1]['AUC'] = 1-roc_auc_score(test_fold['targets'], prediction)
 
             if ams_args['n_total'] > 0:
-                 results[-1]['AMS'], results[-1]['cut'] = ams_scan_quick(fold_yielder.get_test_df(test_id, preds=prediction, weight_name='orig_weights'), w_factor=ams_args['n_total']/len(prediction), br=ams_args['br'], delta_b=ams_args['delta_b'])
+                 results[-1]['AMS'], results[-1]['cut'] = ams_scan_quick(fold_yielder.get_fold_df(test_id, preds=prediction, weight_name='orig_weights'), w_factor=ams_args['n_total']/len(prediction), br=ams_args['br'], delta_b=ams_args['delta_b'])
         
         print ("Score is:", results[-1])
 
-        if 'lr' in plots: lr_cycler.plot_lr()
-        if 'mom' in plots: mom_cycler.plot_mom()
+        if 'lr' in plots and not isinstance(lr_cycler, type(None)): lr_cycler.plot()
+        if 'mom' in plots and not isinstance(mom_cycler, type(None)): mom_cycler.plot()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
