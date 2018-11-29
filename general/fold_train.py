@@ -27,10 +27,8 @@ from .fold_yielder import FoldYielder
 
 '''
 Todo:
-- Change callbacks for nicer interface e.g. pass arguments in dictionary
 - Make it possible to annealMomentum without anealing LR
 - Change classifier/regressor to class? Could use static methods to still provide flxibility for prototyping
-- Tidy code and move to PEP 8
 - Add docstrings and stuff
 '''
 
@@ -112,16 +110,15 @@ def fold_lr_find(fold_yielder,
         
     return lr_finders
 
-def save_fold_pred(pred, fold, datafile, predName='pred'):
+def save_fold_pred(pred, fold, datafile, pred_name='pred'):
     try:
-        datafile.create_dataset(fold + "/" + predName, shape=pred.shape, dtype='float32')
+        datafile.create_dataset(f'{fold}/{pred_name}', shape=pred.shape, dtype='float32')
     except RuntimeError:
         pass
     
-    pred = datafile[fold + "/" + predName]
-    pred[...] = pred
-        
-def fold_ensemble_predict(ensemble, weights, fold_yielder, predName='pred', n_out=1, output_pipe=None, ensemble_size=None, n_folds=-1, verbose=False):
+    datafile[f'{fold}/{pred_name}'][...] = pred
+
+def fold_ensemble_predict(ensemble, weights, fold_yielder, pred_name='pred', n_out=1, output_pipe=None, ensemble_size=None, n_folds=-1, verbose=False):
     if isinstance(ensemble_size, type(None)):
         ensemble_size = len(ensemble)
 
@@ -137,14 +134,14 @@ def fold_ensemble_predict(ensemble, weights, fold_yielder, predName='pred', n_ou
             print ('Predicting fold {} out of {}'.format(fold_id+1, n_folds))
             start = timeit.default_timer()
 
-        if not fold_yielder.testTimeAug:
+        if not fold_yielder.test_time_aug:
             fold = fold_yielder.get_fold(fold_id)['inputs']
             pred = ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe)
 
         else:
             tmpPred = []
-            for aug in range(fold_yielder.augMult): #Multithread this?
-                fold = fold_yielder.getTestFold(fold_id, aug)['inputs']
+            for aug in range(fold_yielder.aug_mult): #Multithread this?
+                fold = fold_yielder.get_test_fold(fold_id, aug)['inputs']
                 tmpPred.append(ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe))
             pred = np.mean(tmpPred, axis=0)
 
@@ -152,9 +149,9 @@ def fold_ensemble_predict(ensemble, weights, fold_yielder, predName='pred', n_ou
             print ("Prediction took {}s per sample\n".format((timeit.default_timer() - start)/len(fold)))
 
         if n_out > 1:
-            save_fold_pred(pred, 'fold_' + str(fold_id), fold_yielder.source, predName=predName)
+            save_fold_pred(pred, 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
         else:
-            save_fold_pred(pred[:,0], 'fold_' + str(fold_id), fold_yielder.source, predName=predName)
+            save_fold_pred(pred[:,0], 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
         
 def get_feature(feature, datafile, n_folds=-1, ravel=True, setFold=-1):
     if setFold < 0:
@@ -409,7 +406,7 @@ def fold_train_model(fold_yielder, n_models,
         print ("Score is:", results[-1])
 
         if 'lr' in plots: lr_cycler.plot_lr()
-        if 'mom' in plots: mom_cycler.plot_momentum()
+        if 'mom' in plots: mom_cycler.plot_mom()
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
