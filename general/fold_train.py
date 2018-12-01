@@ -20,6 +20,7 @@ from .ensemble_functions import ensemble_predict
 from .callbacks import OneCycle, CosAnnealLR, CosAnnealMom, LinearCLR, LinearCMom, SWA, LRFinder
 from .metrics import ams_scan_quick
 from .fold_yielder import FoldYielder
+from .models import get_model
 
 '''
 Todo:
@@ -156,8 +157,8 @@ def fold_ensemble_predict(ensemble, weights, fold_yielder, pred_name='pred', n_o
             save_fold_pred(pred[:, 0], 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
 
 
-def get_feature(feature, datafile, n_folds=-1, ravel=True, setFold=-1):
-    if setFold < 0:
+def get_feature(feature, datafile, n_folds=-1, ravel=True, set_fold=-1):
+    if set_fold < 0:
         data = []
         for i, fold in enumerate(datafile):
             if i >= n_folds and n_folds > 0:
@@ -166,14 +167,14 @@ def get_feature(feature, datafile, n_folds=-1, ravel=True, setFold=-1):
             
         data = np.concatenate(data)
     else:
-        data = np.array(datafile['fold_' + str(setFold) + '/' + feature])
+        data = np.array(datafile['fold_' + str(set_fold) + '/' + feature])
     if ravel:
         return data.ravel()
     return data
 
 
-def fold_train_model(fold_yielder, n_models,
-                     model_gen, model_gen_params, train_params, 
+def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
+                     model_gen=get_model,
                      use_callbacks={},
                      train_on_weights=True, patience=10, max_epochs=10000,
                      plots=['history'], ams_args={'n_total': 0, 'br': 0, 'delta_b': 0},
