@@ -46,7 +46,13 @@ def move_to_pt_eta_phi(in_data, particle):
 
 
 def delta_phi(a, b):
-    return np.sign(b - a) * (np.pi - np.abs(np.abs(a - b) - np.pi))
+    # return np.sign(b - a) * (np.pi - np.abs(np.abs(a - b) - np.pi))
+    dphi = b - a
+    while dphi > np.pi:
+        dphi -= 2 * np.pi
+    while dphi < -np.pi:
+        dphi += 2 * np.pi
+    return dphi
 
 
 def twist(dphi, deta):
