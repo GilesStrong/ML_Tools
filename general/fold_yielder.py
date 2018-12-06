@@ -74,6 +74,7 @@ class HEPAugFoldYielder(FoldYielder):
                  train_time_aug=True, test_time_aug=True):
         self.header = header
         self.rotate_aug = rotate
+        self.reflect_aug_x = reflect_x
         self.reflect_aug_y = reflect_y
         self.reflect_aug_z = reflect_z
         self.augmented = True
