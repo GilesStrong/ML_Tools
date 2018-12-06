@@ -96,7 +96,7 @@ class HEPAugFoldYielder(FoldYielder):
                 self.aug_mult *= 2
             
         else:
-            if self.reflect_aug_y:
+            if self.reflect_aug_x:
                 print("Augmenting via x flips")
                 self.reflect_axes = ['_px']
                 self.aug_mult *= 2
@@ -221,7 +221,7 @@ class HEPAugFoldYielder(FoldYielder):
             
         elif len(self.reflect_axes):
             ref_index = self.get_ref_index(aug_index)
-            
+
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
             for i, coord in enumerate(self.reflect_axes):
                 inputs['aug' + coord] = int(ref_index[i])
