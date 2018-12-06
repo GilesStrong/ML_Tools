@@ -70,11 +70,11 @@ class FoldYielder():
 
 class HEPAugFoldYielder(FoldYielder):
     def __init__(self, header, datafile=None, input_pipe=None,
-                 rotate=True, reflect_x=True, reflect_z=True, rot_mult=4,
+                 rotate=True, reflect_y=True, reflect_z=True, rot_mult=4,
                  train_time_aug=True, test_time_aug=True):
         self.header = header
         self.rotate_aug = rotate
-        self.reflect_aug_x = reflect_x
+        self.reflect_aug_y = reflect_y
         self.reflect_aug_z = reflect_z
         self.augmented = True
         self.rot_mult = rot_mult
@@ -96,7 +96,7 @@ class HEPAugFoldYielder(FoldYielder):
                 self.aug_mult *= 2
             
         else:
-            if self.reflect_aug_x:
+            if self.reflect_aug_y:
                 print("Augmenting via transverse flips")
                 self.reflect_axes = ['_px', '_py']
                 self.aug_mult = 4
@@ -194,7 +194,7 @@ class HEPAugFoldYielder(FoldYielder):
         if len(self.reflect_axes) and self.rotate_aug:
             rot_index = aug_index % self.rot_mult
 
-            if self.reflect_aug_x and self.reflect_aug_z:
+            if self.reflect_aug_y and self.reflect_aug_z:
                 ref_index = '{0:02b}'.format(int(aug_index / 4))
             else:
                 ref_index = '{0:01b}'.format(int(aug_index / 2))
