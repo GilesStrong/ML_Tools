@@ -85,9 +85,9 @@ class HEPAugFoldYielder(FoldYielder):
             print("Augmenting via phi rotations")
             self.aug_mult = self.rot_mult
 
-            if self.reflect_aug_x:
-                print("Augmenting via x flips")
-                self.reflect_axes = ['_px']
+            if self.reflect_aug_y:
+                print("Augmenting via y flips")
+                self.reflect_axes = ['_py']
                 self.aug_mult *= 2
             
             if self.reflect_aug_z:
