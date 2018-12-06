@@ -70,33 +70,44 @@ class FoldYielder():
 
 class HEPAugFoldYielder(FoldYielder):
     def __init__(self, header, datafile=None, input_pipe=None,
-                 rotate=True, reflect=True, rot_mult=4,
+                 rotate=True, reflect_x=True, reflect_z=True, rot_mult=4,
                  train_time_aug=True, test_time_aug=True):
         self.header = header
         self.rotate_aug = rotate
-        self.reflect_aug = reflect
+        self.reflect_aug_x = reflect_x
+        self.reflect_aug_z = reflect_z
         self.augmented = True
         self.rot_mult = rot_mult
-        
-        if self.rotate_aug and not self.reflect_aug:
+        self.reflect_axes = []
+        self.aug_mult = 0
+
+        if self.rotate_aug:
+            print("Augmenting via phi rotations")
             self.aug_mult = self.rot_mult
+
+            if self.reflect_aug_x:
+                print("Augmenting via x flips")
+                self.reflect_axes = ['_px']
+                self.aug_mult *= 2
             
-        elif not self.rotate_aug and self.reflect_aug:
-            self.reflect_axes = ['_px', '_py', '_pz']
-            self.aug_mult = 8
+            if self.reflect_aug_z:
+                print("Augmenting via longitunidnal flips")
+                self.reflect_axes += ['_pz']
+                self.aug_mult *= 2
             
-        elif not self.rotate_aug and not self.reflect_aug:
-            self.augmented = False
-            train_time_aug = False
-            test_time_aug = False
-            self.aug_mult = 0
-            print('No augmentation specified!')
-            input_pipe = None
+        else:
+            if self.reflect_aug_x:
+                print("Augmenting via transverse flips")
+                self.reflect_axes = ['_px', '_py']
+                self.aug_mult = 4
             
-        else:  # reflect and rotate
-            self.reflect_axes = ['_px', '_pz']
-            self.aug_mult = self.rot_mult * 4
-            
+            if self.reflect_aug_z:
+                print("Augmenting via longitunidnal flips")
+                self.reflect_axes += ['_pz']
+                self.aug_mult *= 2
+
+        print('Total augmentation multiplicity is', self.aug_mult)
+
         self.train_time_aug = train_time_aug
         self.test_time_aug = test_time_aug
         self.input_pipe = input_pipe
@@ -146,10 +157,9 @@ class HEPAugFoldYielder(FoldYielder):
             inputs['aug_angle'] = 2 * np.pi * np.random.random(size=len(inputs))
             self.rotate(inputs, vectors)
             
-        if self.reflect_aug:
-            for coord in self.reflect_axes:
-                inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
-            self.reflect(inputs, vectors)
+        for coord in self.reflect_axes:
+            inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
+        self.reflect(inputs, vectors)
             
         if isinstance(self.input_pipe, type(None)):
             inputs = inputs[self.header].values
@@ -181,9 +191,14 @@ class HEPAugFoldYielder(FoldYielder):
         else:
             inputs = pd.DataFrame(self.input_pipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
             
-        if self.reflect_aug and self.rotate_aug:
+        if len(self.reflect_axes) and self.rotate_aug:
             rot_index = aug_index % self.rot_mult
-            ref_index = '{0:02b}'.format(int(aug_index / 4))
+
+            if self.reflect_aug_x and self.reflect_aug_z:
+                ref_index = '{0:02b}'.format(int(aug_index / 4))
+            else:
+                ref_index = '{0:01b}'.format(int(aug_index / 2))
+
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
             inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[rot_index]
             for i, coord in enumerate(self.reflect_axes):
