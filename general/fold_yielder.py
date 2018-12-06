@@ -70,7 +70,7 @@ class FoldYielder():
 
 class HEPAugFoldYielder(FoldYielder):
     def __init__(self, header, datafile=None, input_pipe=None,
-                 rotate=True, reflect_y=True, reflect_z=True, rot_mult=4,
+                 rotate=True, reflect_x=False, reflect_y=True, reflect_z=True, rot_mult=4,
                  train_time_aug=True, test_time_aug=True):
         self.header = header
         self.rotate_aug = rotate
@@ -79,7 +79,7 @@ class HEPAugFoldYielder(FoldYielder):
         self.augmented = True
         self.rot_mult = rot_mult
         self.reflect_axes = []
-        self.aug_mult = 0
+        self.aug_mult = 1
 
         if self.rotate_aug:
             print("Augmenting via phi rotations")
@@ -97,14 +97,21 @@ class HEPAugFoldYielder(FoldYielder):
             
         else:
             if self.reflect_aug_y:
-                print("Augmenting via transverse flips")
-                self.reflect_axes = ['_px', '_py']
-                self.aug_mult = 4
+                print("Augmenting via x flips")
+                self.reflect_axes = ['_px']
+                self.aug_mult *= 2
+
+            if self.reflect_aug_y:
+                print("Augmenting via y flips")
+                self.reflect_axes = ['_py']
+                self.aug_mult *= 2
             
             if self.reflect_aug_z:
                 print("Augmenting via longitunidnal flips")
                 self.reflect_axes += ['_pz']
                 self.aug_mult *= 2
+
+        self.aug_mult = 0 if self.aug_mult == 1 else self.aug_mult
 
         print('Total augmentation multiplicity is', self.aug_mult)
 
@@ -169,6 +176,16 @@ class HEPAugFoldYielder(FoldYielder):
         return {'inputs': inputs,
                 'targets': targets,
                 'weights': weights}
+
+    def get_ref_index(self, aug_index):
+        n_axes = len(self.reflect_axes)
+        div = 2 * n_axes if self.rotate_aug else 1
+        if n_axes == 3:
+            return '{0:03b}'.format(int(aug_index / div))
+        elif n_axes == 2:
+            return '{0:02b}'.format(int(aug_index / div))
+        elif n_axes == 1:
+            return '{0:01b}'.format(int(aug_index / div))
     
     def get_test_fold(self, index, aug_index, datafile=None):
         if aug_index >= self.aug_mult:
@@ -193,11 +210,7 @@ class HEPAugFoldYielder(FoldYielder):
             
         if len(self.reflect_axes) and self.rotate_aug:
             rot_index = aug_index % self.rot_mult
-
-            if self.reflect_aug_y and self.reflect_aug_z:
-                ref_index = '{0:02b}'.format(int(aug_index / 4))
-            else:
-                ref_index = '{0:01b}'.format(int(aug_index / 2))
+            ref_index = self.get_ref_index(aug_index)
 
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
             inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[rot_index]
@@ -206,8 +219,9 @@ class HEPAugFoldYielder(FoldYielder):
             self.rotate(inputs, vectors)
             self.reflect(inputs, vectors)
             
-        elif self.reflect_aug:
-            ref_index = '{0:03b}'.format(int(aug_index))
+        elif len(self.reflect_axes):
+            ref_index = self.get_ref_index(aug_index)
+            
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
             for i, coord in enumerate(self.reflect_axes):
                 inputs['aug' + coord] = int(ref_index[i])
