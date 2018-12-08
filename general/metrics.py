@@ -1,11 +1,15 @@
 from __future__ import division
-import numpy as np
-import math
-import multiprocessing as mp
-
-from sklearn.model_selection import StratifiedKFold
 
 from .misc_functions import uncert_round
+
+import numpy as np
+import pandas as pd
+import math
+import multiprocessing as mp
+import statsmodels.api as sm
+
+import seaborn as sns
+sns.set_style("whitegrid")
 
 
 def calc_ams(s, b, br=0, delta_b=0):
@@ -86,31 +90,17 @@ def ams_scan_slow(in_data, w_factor=1, br=0, syst_b=0, use_stat_unc=False, start
     return max_ams, threshold
 
 
-def mp_calc_ams(data, i, w_factor, br, out_q):
-    ams, cut = ams_scan_quick(data, w_factor, br)
+def mp_calc_ams(data, i, w_factor, br, delta_b, out_q):
+    ams, cut = ams_scan_quick(data, w_factor=w_factor, br=br, delta_b=delta_b)
     out_q.put({str(i) + '_ams': ams, str(i) + '_cut': cut})
 
 
-def mp_sk_fold_calc_ams(data, i, size, nFolds, br, out_q):
-    kf = StratifiedKFold(n_splits=nFolds, shuffle=True)
-    folds = kf.split(data, data['gen_target'])
-    uids = range(i * nFolds, (i + 1) * nFolds)
-    out_dict = {}
-
-    for j, (_, fold) in enumerate(folds):
-        ams, cut = ams_scan_quick(data.iloc[fold], size / len(fold), br)
-        if ams > 0:
-            out_dict[str(uids[j]) + '_ams'] = ams
-            out_dict[str(uids[j]) + '_cuts'] = cut
-    out_q.put(out_dict)
-
-
-def bootstrap_mean_calc_ams(data, w_factor=1, N=512, br=0):
+def bootstrap_mean_calc_ams(data, w_factor=1, N=512, br=0, delta_b=0):
     procs = []
     out_q = mp.Queue()
     for i in range(N):
         indeces = np.random.choice(data.index, len(data), replace=True)
-        p = mp.Process(target=mp_calc_ams, args=(data.iloc[indeces], i, w_factor, br, out_q))
+        p = mp.Process(target=mp_calc_ams, args=(data.iloc[indeces], i, w_factor, br, delta_b, out_q))
         procs.append(p)
         p.start() 
     result_dict = {}
@@ -126,37 +116,38 @@ def bootstrap_mean_calc_ams(data, w_factor=1, N=512, br=0):
     mean_cut = uncert_round(np.mean(cuts), np.std(cuts))
 
     ams = calc_ams(w_factor * np.sum(data.loc[(data.pred_class >= np.mean(cuts)) & (data.gen_target == 1), 'gen_weight']),
-                   w_factor * np.sum(data.loc[(data.pred_class >= np.mean(cuts)) & (data.gen_target == 0), 'gen_weight']))
+                   w_factor * np.sum(data.loc[(data.pred_class >= np.mean(cuts)) & (data.gen_target == 0), 'gen_weight']),
+                   br=br, delta_b=delta_b)
     
     print('\nMean calc_ams={}+-{}, at mean cut of {}+-{}'.format(mean_ams[0], mean_ams[1], mean_cut[0], mean_cut[1]))
     print('Exact mean cut {}, corresponds to calc_ams of {}'.format(np.mean(cuts), ams))
-    return (mean_ams[0], mean_cut[0])
+    return (mean_ams[0], mean_cut[0], np.mean(cuts))
 
 
-def bootstrap_sk_fold_mean_calc_ams(data, size=1, N=10, nFolds=500, br=0):
-    print("Warning, this method might not be trustworthy: cut decreases with nFolds")
-    procs = []
-    out_q = mp.Queue()
-    for i in range(N):
-        p = mp.Process(target=mp_sk_fold_calc_ams, args=(data, i, size, nFolds, br, out_q))
-        procs.append(p)
-        p.start() 
-    result_dict = {}
-    for i in range(N):
-        result_dict.update(out_q.get()) 
-    for p in procs:
-        p.join()  
+def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02,
+                     w_factor=1.0, br=0.0, delta_b=0.0):
+    '''Use a KDE to find a fluctaution resiliant cut which should generalise better'''
+
+    sig = (in_data.gen_target == 1)
+    bkg = (in_data.gen_target == 0)
+    if 'ams' not in in_data.columns:
+        in_data['ams'] = in_data.apply(lambda row:
+                                       calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & sig, 'gen_weight']),
+                                                w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & bkg, 'gen_weight']),
+                                                br=br, delta_b=delta_b), axis=1)
         
-    amss = np.array([result_dict[x] for x in result_dict if 'ams' in x])
-    cuts = np.array([result_dict[x] for x in result_dict if 'cut' in x])
-
-    mean_ams = uncert_round(np.mean(amss), np.std(amss) / np.sqrt(N * nFolds))
-    mean_cut = uncert_round(np.mean(cuts), np.std(cuts) / np.sqrt(N * nFolds))
-
-    scale = size / len(data)
-    ams = calc_ams(scale * np.sum(data.loc[(data.pred_class >= np.mean(cuts)) & (data.gen_target == 1), 'gen_weight']),
-                   scale * np.sum(data.loc[(data.pred_class >= np.mean(cuts)) & (data.gen_target == 0), 'gen_weight']))
+    cuts = in_data.sort_values(by='ams', ascending=False)['pred_class'].values[0:int(top_perc * len(in_data))]
     
-    print('\nMean calc_ams={}+-{}, at mean cut of {}+-{}'.format(mean_ams[0], mean_ams[1], mean_cut[0], mean_cut[1]))
-    print('Exact mean cut {}, corresponds to calc_ams of {}'.format(np.mean(cuts), ams))
-    return (mean_ams[0], mean_cut[0])
+    kde = sm.nonparametric.KDEUnivariate(cuts.astype('float64'))
+    kde.fit()
+    
+    points = np.array([(x, kde.evaluate(x)) for x in np.linspace(cuts.min(), cuts.max(), 1000)])
+    cut = points[np.argmax(points[:, 1])][0]
+    ams = calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & (in_data.gen_target == 1), 'gen_weight']),
+                   w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & (in_data.gen_target == 0), 'gen_weight']),
+                   br=br, delta_b=delta_b)
+    
+    print('Best cut at', cut, 'corresponds to AMS of', ams)
+    sns.distplot(cuts)
+    
+    return cut
