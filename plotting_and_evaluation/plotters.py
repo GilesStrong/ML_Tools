@@ -357,4 +357,58 @@ def get_monitor_comparison_plot(monitors, names, x_axis='iter', y_axis='Loss', l
         plt.xlabel("Learning rate", fontsize=24, color='black')
     plt.ylabel(y_axis, fontsize=24, color='black')
     plt.show()
+
+
+def comp_events(events: list):
+    fig, axs = plt.subplots(3, len(events), figsize=(9 * len(events), 27))
+        
+    for vector in [x[:-3] for x in events[0].columns if '_px' in x.lower()]:
+        for i, in_data in enumerate(events):
+            x = in_data[vector + '_px'].values[0]
+            try:
+                y = in_data[vector + '_py'].values[0]
+            except KeyError:
+                y = 0
+            try:
+                z = in_data[vector + '_pz'].values[0]
+            except KeyError:
+                z = 0
+
+            axs[0, i].plot((0, x), (0, y), label=vector)
+            axs[1, i].plot((0, z), (0, x), label=vector)
+            axs[2, i].plot((0, z), (0, y), label=vector)
     
+    circle = np.linspace(-np.pi, np.pi, 200)
+    box = np.linspace(-1, 1, 80)
+    
+    for ax in axs[0]:
+        ax.scatter(np.cos(circle), np.sin(circle), color='grey', alpha=0.5)
+        ax.set_xlim(-1.1, 1.1)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_xlabel(r"$p_x$", fontsize=16, color='black')
+        ax.set_ylabel(r"$p_y$", fontsize=16, color='black')
+        ax.legend(loc='right', fontsize=12)
+        
+    for ax in axs[1]:
+        ax.scatter(2 * box, np.ones_like(box), color='grey', alpha=0.5)
+        ax.scatter(2 * box, -np.ones_like(box), color='grey', alpha=0.5)
+        ax.scatter(-2 * np.ones_like(box), box, color='grey', alpha=0.5)
+        ax.scatter(2 * np.ones_like(box), box, color='grey', alpha=0.5)
+        ax.set_xlim(-2.2, 2.2)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_xlabel(r"$p_z$", fontsize=16, color='black')
+        ax.set_ylabel(r"$p_x$", fontsize=16, color='black')
+        ax.legend(loc='right', fontsize=12)
+    
+    for ax in axs[2]: 
+        ax.scatter(2 * box, np.ones_like(box), color='grey', alpha=0.5)
+        ax.scatter(2 * box, -np.ones_like(box), color='grey', alpha=0.5)
+        ax.scatter(-2 * np.ones_like(box), box, color='grey', alpha=0.5)
+        ax.scatter(2 * np.ones_like(box), box, color='grey', alpha=0.5)
+        ax.set_xlim(-2.2, 2.2)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_xlabel(r"$p_z$", fontsize=16, color='black')
+        ax.set_ylabel(r"$p_y$", fontsize=16, color='black')
+        ax.legend(loc='right', fontsize=12)
+    
+    fig.show()

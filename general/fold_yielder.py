@@ -49,7 +49,7 @@ class FoldYielder():
         else:
             inputs = np.array(datafile['fold_' + index + '/inputs'])
             
-        return {'inputs': inputs,
+        return {'inputs': np.nan_to_num(inputs),
                 'targets': targets,
                 'weights': weights}
 
@@ -88,7 +88,7 @@ class HEPAugFoldYielder(FoldYielder):
 
             if self.reflect_aug_y:
                 print("Augmenting via y flips")
-                self.reflect_axes = ['_py']
+                self.reflect_axes += ['_py']
                 self.aug_mult *= 2
             
             if self.reflect_aug_z:
@@ -99,12 +99,12 @@ class HEPAugFoldYielder(FoldYielder):
         else:
             if self.reflect_aug_x:
                 print("Augmenting via x flips")
-                self.reflect_axes = ['_px']
+                self.reflect_axes += ['_px']
                 self.aug_mult *= 2
 
             if self.reflect_aug_y:
                 print("Augmenting via y flips")
-                self.reflect_axes = ['_py']
+                self.reflect_axes += ['_py']
                 self.aug_mult *= 2
             
             if self.reflect_aug_z:
@@ -151,7 +151,7 @@ class HEPAugFoldYielder(FoldYielder):
             targets = np.array(datafile['fold_' + index + '/targets'])
             
         if not self.augmented:
-            return {'inputs': np.array(datafile['fold_' + index + '/inputs']),
+            return {'inputs': np.nan_to_num(np.array(datafile['fold_' + index + '/inputs'])),
                     'targets': targets,
                     'weights': weights}
 
@@ -174,7 +174,7 @@ class HEPAugFoldYielder(FoldYielder):
         else:
             inputs = self.input_pipe.transform(inputs[self.header].values)
         
-        return {'inputs': inputs,
+        return {'inputs': np.nan_to_num(inputs),
                 'targets': targets,
                 'weights': weights}
 
@@ -228,7 +228,7 @@ class HEPAugFoldYielder(FoldYielder):
                 inputs['aug' + coord] = int(ref_index[i])
             self.reflect(inputs, vectors)
             
-        else:
+        elif self.rotate_aug:
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
             inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[aug_index]
             self.rotate(inputs, vectors)
@@ -238,6 +238,6 @@ class HEPAugFoldYielder(FoldYielder):
         else:
             inputs = self.input_pipe.transform(inputs[self.header].values)
 
-        return {'inputs': inputs,
+        return {'inputs': np.nan_to_num(inputs),
                 'targets': targets,
                 'weights': weights}
