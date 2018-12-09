@@ -124,17 +124,18 @@ def bootstrap_mean_calc_ams(data, w_factor=1, N=512, br=0, delta_b=0):
     return (mean_ams[0], mean_cut[0], np.mean(cuts))
 
 
-def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02,
+def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02, min_pred=0.9,
                      w_factor=1.0, br=0.0, delta_b=0.0):
     '''Use a KDE to find a fluctaution resiliant cut which should generalise better'''
 
     sig = (in_data.gen_target == 1)
     bkg = (in_data.gen_target == 0)
     if 'ams' not in in_data.columns:
-        in_data['ams'] = in_data.apply(lambda row:
-                                       calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & sig, 'gen_weight']),
-                                                w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & bkg, 'gen_weight']),
-                                                br=br, delta_b=delta_b), axis=1)
+        in_data['ams'] = -1
+        in_data.loc[in_data.pred_class >= min_pred]['ams'] = in_data[in_data.pred_class >= min_pred].apply(lambda row:
+                                                                                                           calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & sig, 'gen_weight']),
+                                                                                                                    w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & bkg, 'gen_weight']),
+                                                                                                                    br=br, delta_b=delta_b), axis=1)
         
     cuts = in_data.sort_values(by='ams', ascending=False)['pred_class'].values[0:int(top_perc * len(in_data))]
     
