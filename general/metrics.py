@@ -145,12 +145,12 @@ def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02, min_pred=0.9,
     
     points = np.array([(x, kde.evaluate(x)) for x in np.linspace(cuts.min(), cuts.max(), 1000)])
     cut = points[np.argmax(points[:, 1])][0]
-    ams = calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & (in_data.gen_target == 1), 'gen_weight']),
-                   w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & (in_data.gen_target == 0), 'gen_weight']),
+    ams = calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & sig, 'gen_weight']),
+                   w_factor * np.sum(in_data.loc[(in_data.pred_class >= cut) & bkg, 'gen_weight']),
                    br=br, delta_b=delta_b)
     
     print('Best cut at', cut, 'corresponds to AMS of', ams)
-    print('Maximum AMS for data is', in_data['ams'][0], 'at cut of', in_data['pred_class'][0])
+    print('Maximum AMS for data is', in_data.iloc[0]['ams'], 'at cut of', in_data[.iloc[0]['pred_class'])
     sns.distplot(cuts)
     
     return cut
