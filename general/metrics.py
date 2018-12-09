@@ -137,7 +137,8 @@ def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02, min_pred=0.9,
                                                                                                                     w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & bkg, 'gen_weight']),
                                                                                                                     br=br, delta_b=delta_b), axis=1)
         
-    cuts = in_data.sort_values(by='ams', ascending=False, inplace=True)['pred_class'].values[0:int(top_perc * len(in_data))]
+    in_data.sort_values(by='ams', ascending=False, inplace=True)
+    cuts = in_data['pred_class'].values[0:int(top_perc * len(in_data))]
     
     kde = sm.nonparametric.KDEUnivariate(cuts.astype('float64'))
     kde.fit()
