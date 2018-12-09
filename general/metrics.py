@@ -132,7 +132,7 @@ def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02, min_pred=0.9,
     bkg = (in_data.gen_target == 0)
     if 'ams' not in in_data.columns:
         in_data['ams'] = -1
-        in_data.loc[in_data.pred_class >= min_pred]['ams'] = in_data[in_data.pred_class >= min_pred].apply(lambda row:
+        in_data.loc[in_data.pred_class >= min_pred, 'ams'] = in_data[in_data.pred_class >= min_pred].apply(lambda row:
                                                                                                            calc_ams(w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & sig, 'gen_weight']),
                                                                                                                     w_factor * np.sum(in_data.loc[(in_data.pred_class >= row.pred_class) & bkg, 'gen_weight']),
                                                                                                                     br=br, delta_b=delta_b), axis=1)
