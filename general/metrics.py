@@ -150,7 +150,7 @@ def kde_optimise_cut(in_data: pd.DataFrame, top_perc=0.02, min_pred=0.9,
                    br=br, delta_b=delta_b)
     
     print('Best cut at', cut, 'corresponds to AMS of', ams)
-    print('Maximum AMS for data is', in_data.iloc[0]['ams'], 'at cut of', in_data[.iloc[0]['pred_class'])
+    print('Maximum AMS for data is', in_data.iloc[0]['ams'], 'at cut of', in_data.iloc[0]['pred_class'])
     sns.distplot(cuts)
     
     return cut
