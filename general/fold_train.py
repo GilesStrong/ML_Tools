@@ -362,6 +362,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 elif cycling and not redux_decay_active:
                     if lr_cycler.cycle_end:
                         epoch_counter += 1
+                        model.save_weights(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5")
                 else:
                     epoch_counter += 1
                     if redux_decay_active:
