@@ -69,7 +69,7 @@ class FoldYielder():
 
 
 class HEPAugFoldYielder(FoldYielder):
-    def __init__(self, header, datafile=None, input_pipe=None,
+    def __init__(self, header, datafile=None,
                  rotate=True, reflect_x=False, reflect_y=True, reflect_z=True, rot_mult=4,
                  train_time_aug=True, test_time_aug=True):
         self.header = header
@@ -118,7 +118,6 @@ class HEPAugFoldYielder(FoldYielder):
 
         self.train_time_aug = train_time_aug
         self.test_time_aug = test_time_aug
-        self.input_pipe = input_pipe
         
         if not isinstance(datafile, type(None)):
             self.add_source(datafile)
@@ -155,10 +154,7 @@ class HEPAugFoldYielder(FoldYielder):
                     'targets': targets,
                     'weights': weights}
 
-        if isinstance(self.input_pipe, type(None)):
-            inputs = pd.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pd.DataFrame(self.input_pipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
+        inputs = pd.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
         
         vectors = [x[:-3] for x in inputs.columns if '_px' in x]
         if self.rotate_aug:
@@ -169,10 +165,7 @@ class HEPAugFoldYielder(FoldYielder):
             inputs['aug' + coord] = np.random.randint(0, 2, size=len(inputs))
         self.reflect(inputs, vectors)
             
-        if isinstance(self.input_pipe, type(None)):
-            inputs = inputs[self.header].values
-        else:
-            inputs = self.input_pipe.transform(inputs[self.header].values)
+        inputs = inputs[self.header].values
         
         return {'inputs': np.nan_to_num(inputs),
                 'targets': targets,
@@ -204,10 +197,7 @@ class HEPAugFoldYielder(FoldYielder):
         if 'fold_' + index + '/targets' in datafile:
             targets = np.array(datafile['fold_' + index + '/targets'])
             
-        if isinstance(self.input_pipe, type(None)):
-            inputs = pd.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
-        else:
-            inputs = pd.DataFrame(self.input_pipe.inverse_transform(np.array(datafile['fold_' + index + '/inputs'])), columns=self.header)            
+        inputs = pd.DataFrame(np.array(datafile['fold_' + index + '/inputs']), columns=self.header)
             
         if len(self.reflect_axes) and self.rotate_aug:
             rot_index = aug_index % self.rot_mult
@@ -233,10 +223,7 @@ class HEPAugFoldYielder(FoldYielder):
             inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[aug_index]
             self.rotate(inputs, vectors)
             
-        if isinstance(self.input_pipe, type(None)):
-            inputs = inputs[self.header].values
-        else:
-            inputs = self.input_pipe.transform(inputs[self.header].values)
+        inputs = inputs[self.header].values
 
         return {'inputs': np.nan_to_num(inputs),
                 'targets': targets,
