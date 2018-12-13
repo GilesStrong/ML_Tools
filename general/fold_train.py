@@ -180,7 +180,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                      plots=['history'], ams_args={'n_total': 0, 'br': 0, 'delta_b': 0},
                      saveloc=Path('train_weights'), verbose=False, log_output=False):
     
-    os.makedirs(f"mkdir {saveloc}", exist_ok=True)
+    os.makedirs(saveloc, exist_ok=True)
     os.system(f"rm {saveloc}/*.h5")
     os.system(f"rm {saveloc}/*.json")
     os.system(f"rm {saveloc}/*.pkl")
@@ -362,7 +362,8 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 elif cycling and not redux_decay_active:
                     if lr_cycler.cycle_end:
                         epoch_counter += 1
-                        model.save_weights(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5")
+                        print(f"saving snapshot {lr_cycler.cycle_count}")
+                        model.save(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5", include_optimizer=False)
                 else:
                     epoch_counter += 1
                     if redux_decay_active:
@@ -419,7 +420,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
 
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
-        model.save(str(saveloc / ('train_' + str(model_num) + '.h5')))
+        model.save(str(saveloc / ('train_' + str(model_num) + '.h5')), include_optimizer=False)
         with open(saveloc / 'resultsFile.pkl', 'wb') as fout:  # Save results
             pickle.dump(results, fout)
 
