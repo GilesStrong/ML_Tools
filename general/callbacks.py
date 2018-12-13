@@ -236,6 +236,7 @@ class CosAnnealLR(Callback):
             self.nb *= self.cycle_mult
             self.cycle_count += 1
             self.cycle_end = True
+            print(f"Cycle {self.cycle_count} ended")
         if self.reverse:
             return self.lr - (self.lr / 2 * cos_out)
         else:
