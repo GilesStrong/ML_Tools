@@ -236,7 +236,6 @@ class CosAnnealLR(Callback):
             self.nb *= self.cycle_mult
             self.cycle_count += 1
             self.cycle_end = True
-            print(f"Cycle {self.cycle_count} ended")
         if self.reverse:
             return self.lr - (self.lr / 2 * cos_out)
         else:
@@ -490,7 +489,7 @@ class SWA(Callback):
                 self.first_completed = True
                 self.n_since_renewal += 1
                 if self.n_since_renewal > self.cylcle_since_replacement * self.renewal and self.renewal > 0:
-                    self.compareAverages()
+                    self.compare_averages()
             
         if isinstance(self.lr_callback, type(None)) or self.lr_callback.cycle_end:
             self.epoch += 1
@@ -513,7 +512,7 @@ class SWA(Callback):
                 swa_param += model_param
                 swa_param /= (self.n_since_renewal + 1)
             
-    def compareAverages(self):
+    def compare_averages(self):
         if isinstance(self.losses['swa'], type(None)):
             self.test_model.set_weights(self.swa_model)
             if self.weighted:

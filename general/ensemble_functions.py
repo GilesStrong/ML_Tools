@@ -65,17 +65,19 @@ def get_weights(value, metric, weighting='reciprocal'):
     return None
 
 
-def assemble_ensemble(results, size, metric, compile_args=None, weighting='reciprocal', mva='NN', load_mode='model', location='train_weights/train_'):
+def assemble_ensemble(results, size, metric, compile_args=None, weighting='reciprocal', mva='NN', load_mode='model', location='train_weights/train_', verbose=True):
     ensemble = []
     weights = []
-    print("Choosing ensemble by", metric)
+    if verbose:
+        print("Choosing ensemble by", metric)
     dtype = [('cycle', int), ('result', float)]
     values = np.sort(np.array([(i, result[metric]) for i, result in enumerate(results)], dtype=dtype),
                      order=['result'])
     for i in range(min([size, len(results)])):
         ensemble.append(load_trained_model(values[i]['cycle'], compile_args, mva, load_mode, location))
         weights.append(get_weights(values[i]['result'], metric, weighting))
-        print("Model", i, "is", values[i]['cycle'], "with", metric, "=", values[i]['result'])
+        if verbose:
+            print("Model", i, "is", values[i]['cycle'], "with", metric, "=", values[i]['result'])
     weights = np.array(weights)
     weights = weights / weights.sum()  # normalise weights
     return ensemble, weights

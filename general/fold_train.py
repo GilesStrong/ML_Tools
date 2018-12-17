@@ -195,6 +195,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
     start = timeit.default_timer()
     results = []
     histories = []
+    cycle_losses = []
     if 'class' in model_gen_params['mode'].lower():
         binary = None
     else:
@@ -281,6 +282,9 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 callbacks.append(swa)
         use_swa = False
 
+        if cycling:
+            cycle_losses.append({})
+
         for epoch in range(max_epochs):
             for n in trainID:  # Loop through training folds
                 train_fold = fold_yielder.get_fold(n)  # Load fold data
@@ -332,6 +336,11 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 
                 if swa_start >= 0 and swa.active and cycling and use_callbacks['CosAnnealLR']['cycle_mult'] > 1:
                     print("{} SWA loss:", subEpoch, loss)
+
+                if lr_cycler.cycle_end and not redux_decay_active:
+                    print(f"Saving snapshot {lr_cycler.cycle_count}")
+                    cycle_losses[-1][lr_cycler.cycle_count] = loss
+                    model.save(str(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5"), include_optimizer=False)
                 
                 if swa_start >= 0:
                     if swa.active:
@@ -343,7 +352,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 else:
                     loss_history['val_loss'].append(loss)        
 
-                if loss <= best or best < 0:  # S ave best
+                if loss <= best or best < 0:  # Save best
                     best = loss
                     if cycling:
                         if lr_cycler.lrs[-1] > 0:
@@ -362,8 +371,6 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 elif cycling and not redux_decay_active:
                     if lr_cycler.cycle_end:
                         epoch_counter += 1
-                        print(f"saving snapshot {lr_cycler.cycle_count}")
-                        model.save(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5", include_optimizer=False)
                 else:
                     epoch_counter += 1
                     if redux_decay_active:
@@ -421,8 +428,10 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
         print("Fold took {:.3f}s\n".format(timeit.default_timer() - model_start))
 
         model.save(str(saveloc / ('train_' + str(model_num) + '.h5')), include_optimizer=False)
-        with open(saveloc / 'resultsFile.pkl', 'wb') as fout:  # Save results
+        with open(saveloc / 'results_file.pkl', 'wb') as fout:  # Save results
             pickle.dump(results, fout)
+        with open(saveloc / 'cycle_file.pkl', 'wb') as fout:  # Save cycles
+            pickle.dump(cycle_losses, fout)
 
     print("\n______________________________________")
     print("Training finished")
@@ -437,4 +446,4 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
     if log_output:
         sys.stdout = old_stdout
         log_file.close()
-    return results, histories
+    return results, histories, cycle_losses
