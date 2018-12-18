@@ -2,6 +2,7 @@ from __future__ import division
 
 import numpy as np
 import pandas as pd
+import warnings
 
 '''
 Todo:
@@ -71,7 +72,12 @@ class FoldYielder():
 class HEPAugFoldYielder(FoldYielder):
     def __init__(self, header, datafile=None,
                  rotate=True, reflect_x=False, reflect_y=True, reflect_z=True, rot_mult=4,
-                 train_time_aug=True, test_time_aug=True):
+                 random_rot=False, train_time_aug=True, test_time_aug=True):
+
+        if rotate and not random_rot and rot_mult % 2 != 0:
+            warnings.warn('Warning: rot_mult must currently be even for fixed rotations, adding an extra rotation multiplicity')
+            rot_mult += 1
+
         self.header = header
         self.rotate_aug = rotate
         self.reflect_aug_x = reflect_x
@@ -81,6 +87,7 @@ class HEPAugFoldYielder(FoldYielder):
         self.rot_mult = rot_mult
         self.reflect_axes = []
         self.aug_mult = 1
+        self.random_rot = random_rot
 
         if self.rotate_aug:
             print("Augmenting via phi rotations")
@@ -111,8 +118,6 @@ class HEPAugFoldYielder(FoldYielder):
                 print("Augmenting via longitunidnal flips")
                 self.reflect_axes += ['_pz']
                 self.aug_mult *= 2
-
-        self.aug_mult = 0 if self.aug_mult == 1 else self.aug_mult
 
         print('Total augmentation multiplicity is', self.aug_mult)
 
@@ -204,7 +209,10 @@ class HEPAugFoldYielder(FoldYielder):
             ref_index = self.get_ref_index(aug_index)
 
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-            inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[rot_index]
+            if self.random_rot:
+                inputs['aug_angle'] = 2 * np.pi * np.random.random(size=len(inputs))
+            else:
+                inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[rot_index]
             for i, coord in enumerate(self.reflect_axes):
                 inputs['aug' + coord] = int(ref_index[i])
             self.rotate(inputs, vectors)
@@ -220,7 +228,10 @@ class HEPAugFoldYielder(FoldYielder):
             
         elif self.rotate_aug:
             vectors = [x[:-3] for x in inputs.columns if '_px' in x]
-            inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[aug_index]
+            if self.random_rot:
+                inputs['aug_angle'] = 2 * np.pi * np.random.random(size=len(inputs))
+            else:
+                inputs['aug_angle'] = np.linspace(0, 2 * np.pi, (self.rot_mult) + 1)[aug_index]
             self.rotate(inputs, vectors)
             
         inputs = inputs[self.header].values
