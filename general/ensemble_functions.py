@@ -4,6 +4,7 @@ import json
 import os
 from six.moves import cPickle as pickle
 import glob
+import warnings
 
 from keras.models import Sequential, Model, model_from_json, load_model
 
@@ -37,20 +38,21 @@ def ensemble_predict(in_data, ensemble, weights, output_pipe=None, n_out=1, n=-1
     return pred
 
 
-def load_trained_model(cycle, compile_args, mva='NN', load_mode='model', location='train_weights/train_'): 
-    cycle = int(cycle)
+def load_trained_model(model_id, compile_args, mva='NN', load_mode='model', location='train_weights/train_'): 
+    model_id = int(model_id)
     model = None
     if mva == 'NN':
         if load_mode == 'model':
-            model = load_model(location + str(cycle) + '.h5')
+            model = load_model(location + str(model_id) + '.h5')
         elif load_mode == 'weights':
-            model = model_from_json(open(location + str(cycle) + '.json').read())
-            model.load_weights(location + str(cycle) + '.h5')
-            model.compile(**compile_args)
+            model = model_from_json(open(location + str(model_id) + '.json').read())
+            model.load_weights(location + str(model_id) + '.h5')
+            if compile_args is not None:
+                model.compile(**compile_args)
         else:
             print("No other loading currently supported")
     else:
-        with open(location + str(cycle) + '.pkl', 'r') as fin:   
+        with open(location + str(model_id) + '.pkl', 'r') as fin:   
             model = pickle.load(fin)
     return model
 
@@ -65,19 +67,49 @@ def get_weights(value, metric, weighting='reciprocal'):
     return None
 
 
-def assemble_ensemble(results, size, metric, compile_args=None, weighting='reciprocal', mva='NN', load_mode='model', location='train_weights/train_', verbose=True):
+def assemble_ensemble(results, size, metric='loss', weighting='reciprocal',
+                      cycle_losses=None, n_cycles=None, load_cycles_only=False, patience=2, weighting_pwr=0,
+                      compile_args=None, mva='NN', load_mode='model',
+                      location='train_weights/', verbose=True):
+    if (cycle_losses is not None and n_cycles is None) or (cycle_losses is None and n_cycles is not None):
+        warnings.warn("Warning: cycle ensembles requested, but not enough information passed")
+        return None, None
+    if cycle_losses is not None and n_cycles is not None and metric is not 'loss':
+        warnings.warn("Warning: Setting ensemble metric to loss")
+        metric = 'loss'
+    if cycle_losses is not None and n_cycles is not None and weighting is not 'uniform':
+        warnings.warn("Warning: Setting model weighting to uniform")
+        weighting = 'uniform'
+    
     ensemble = []
     weights = []
+    
     if verbose:
         print("Choosing ensemble by", metric)
-    dtype = [('cycle', int), ('result', float)]
+    dtype = [('model', int), ('result', float)]
     values = np.sort(np.array([(i, result[metric]) for i, result in enumerate(results)], dtype=dtype),
                      order=['result'])
+    
     for i in range(min([size, len(results)])):
-        ensemble.append(load_trained_model(values[i]['cycle'], compile_args, mva, load_mode, location))
-        weights.append(get_weights(values[i]['result'], metric, weighting))
-        if verbose:
-            print("Model", i, "is", values[i]['cycle'], "with", metric, "=", values[i]['result'])
+        if not (load_cycles_only and n_cycles):
+            ensemble.append(load_trained_model(values[i]['model'], compile_args, mva, load_mode, location + 'train_'))
+            weights.append(get_weights(values[i]['result'], metric, weighting))
+        
+            if verbose:
+                print("Model", i, "is", values[i]['model'], "with", metric, "=", values[i]['result'])
+        
+        if n_cycles:
+            end_cycle = len(cycle_losses[values[i]['model']]) - patience
+            if load_cycles_only:
+                end_cycle += 1
+            
+            for n, c in enumerate(range(end_cycle, max(0, end_cycle - n_cycles), -1)):
+                ensemble.append(load_trained_model(c, compile_args, mva, load_mode, location + f'{values[i]["model"]}_cycle_'))
+                weights.append((n + 1)**weighting_pwr)
+            
+                if verbose:
+                    print("Model", i, "cycle", c, "has", metric, "=", cycle_losses[values[i]['model']][c], 'and weight', weights[-1])
+        
     weights = np.array(weights)
     weights = weights / weights.sum()  # normalise weights
     return ensemble, weights

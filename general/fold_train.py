@@ -254,7 +254,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                 print("Using cosine LR annealing")
                 cycling = True
                 redux_decay = use_callbacks['CosAnnealLR']['redux_decay']
-                lr_cycler = CosAnnealLR(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'])
+                lr_cycler = CosAnnealLR(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'], use_callbacks['CosAnnealLR']['scale'])
                 callbacks.append(lr_cycler)
 
             if 'LinearCMom' in use_callbacks:

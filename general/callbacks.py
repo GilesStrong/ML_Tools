@@ -157,7 +157,7 @@ class LRFinder(Callback):
 
 class LinearCLR(Callback):
     '''Cyclical learning rate callback with linear interpolation'''
-    def __init__(self, nb, max_lr, min_lr, scale=2, reverse=False):
+    def __init__(self, nb, max_lr, min_lr, cycle_mult=1, scale=2, reverse=False):
         super(LinearCLR, self).__init__()
         self.nb = nb * scale
         self.cycle_iter = 0
@@ -167,11 +167,12 @@ class LinearCLR(Callback):
         self.min_lr = min_lr
         self.reverse = reverse
         self.cycle_end = False
+        self.cycle_mult = cycle_mult
 
     def on_train_begin(self, logs={}):
         self.cycle_end = False
         
-    def plot_lr(self):
+    def plot(self):
         plt.figure(figsize=(16, 8))
         plt.xlabel("iterations", fontsize=24, color='black')
         plt.ylabel("learning rate", fontsize=24, color='black')
@@ -186,6 +187,12 @@ class LinearCLR(Callback):
         lr = self.min_lr + ((self.max_lr - self.min_lr) * np.max([0, 1 - x]))
 
         self.cycle_iter += 1
+        if self.cycle_iter == 2 * self.nb:
+            self.cycle_iter = 0
+            self.nb *= self.cycle_mult
+            self.cycle_count += 1
+            self.cycle_end = True
+
         if self.reverse:
             return self.max_lr - (lr - self.min_lr)
         else:
@@ -199,9 +206,9 @@ class LinearCLR(Callback):
 
 class CosAnnealLR(Callback):
     '''Adapted from fastai version'''
-    def __init__(self, nb, cycle_mult=1, reverse=False):
+    def __init__(self, nb, cycle_mult=1, reverse=False, scale=1):
         super(CosAnnealLR, self).__init__()
-        self.nb = nb
+        self.nb = scale * nb
         self.cycle_mult = cycle_mult
         self.cycle_iter = 0
         self.cycle_count = 0
