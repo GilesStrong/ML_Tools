@@ -11,8 +11,11 @@ This adapts pretty frequently depending on the needs of my research, but I'm hop
         - Cosine annealed [Loschilov & Hutte, 2016](https://arxiv.org/abs/1608.03983)
         - 1-cycle, [Smith, 2018](https://arxiv.org/abs/1803.09820)
     - HEP-specific data augmentation
-    - Stochastic Weight Averaging [Izmailov, et al., 2018](https://arxiv.org/abs/1803.05407)
+    - Easy training and inference of ensembles of models. 
+    - Advanced ensembling methods:
+        - Snapshot ensembles [Huang et al., 2017](https://arxiv.org/abs/1704.00109)
+        - Fast geometric ensembles [Garipov et al., 2018](https://arxiv.org/abs/1802.10026)
+        - Stochastic Weight Averaging [Izmailov et al., 2018](https://arxiv.org/abs/1803.05407)
     - Learning Rate Finders, [Smith, 2015](https://arxiv.org/abs/1506.01186)
     - Entity embedding of categorical features, [Guo & Berkhahn, 2016](https://arxiv.org/abs/1604.06737)
-- Easy training and inference of ensembles of models. 
 - Various plotting functions, most of which account for sample weights
