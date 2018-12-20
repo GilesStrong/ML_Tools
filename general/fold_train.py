@@ -334,10 +334,10 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
                     else:
                         loss = model.evaluate(test_fold['inputs'], test_fold['targets'], verbose=0)
                 
-                if swa_start >= 0 and swa.active and cycling and use_callbacks['CosAnnealLR']['cycle_mult'] > 1:
+                if swa_start >= 0 and swa.active and cycling and lr_cycler.cycle_mult > 1:
                     print("{} SWA loss:", subEpoch, loss)
 
-                if lr_cycler.cycle_end and not redux_decay_active:
+                if cycling and lr_cycler.cycle_end and not redux_decay_active:
                     print(f"Saving snapshot {lr_cycler.cycle_count}")
                     cycle_losses[-1][lr_cycler.cycle_count] = loss
                     model.save(str(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5"), include_optimizer=False)
