@@ -21,6 +21,8 @@ class Swish(Layer):
     # References
         - [Searching for Activation Functions](https://arxiv.org/abs/1710.05941)
         - [Sigmoid-weighted linear units for neural network function approximation in reinforcement learning](https://arxiv.org/abs/1702.03118)
+
+    Copied for keras_contrib: https://github.com/keras-team/keras-contrib/blob/942d5c30c1c9bc6b08303b48c7192b0eff68c780/keras_contrib/layers/advanced_activations.py
     """
 
     def __init__(self, beta=1.0, trainable=False, **kwargs):
@@ -45,4 +47,3 @@ class Swish(Layer):
                   'trainable': self.trainable}
         base_config = super(Swish, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-        
