@@ -12,6 +12,8 @@ from rep.estimators import XGBoostClassifier
 
 from sklearn.metrics import roc_auc_score
 
+from .activations import Swish
+
 
 def ensemble_predict(in_data, ensemble, weights, output_pipe=None, n_out=1, n=-1):  # Loop though each classifier and predict data class
     if isinstance(in_data, np.ndarray):
@@ -43,7 +45,7 @@ def load_trained_model(model_id, compile_args, mva='NN', load_mode='model', loca
     model = None
     if mva == 'NN':
         if load_mode == 'model':
-            model = load_model(location + str(model_id) + '.h5')
+            model = load_model(location + str(model_id) + '.h5', custom_objects={'Swish': Swish}, compile=False)
         elif load_mode == 'weights':
             model = model_from_json(open(location + str(model_id) + '.json').read())
             model.load_weights(location + str(model_id) + '.h5')

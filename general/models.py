@@ -5,7 +5,7 @@ from keras.layers import Dense, Activation, AlphaDropout, Dropout, BatchNormaliz
 from keras.optimizers import Adam, SGD
 from keras.regularizers import l2
 
-from .activations import swish
+from .activations import swish, Swish
 
 '''
 Todo:
@@ -37,6 +37,10 @@ def get_model(version, n_in, compile_args, mode, n_out=1):
         reg = l2(compile_args['l2'])
     else:
         reg = None
+    if 'train_layer' in compile_args:
+        trainable = compile_args['train_layer']
+    else:
+        trainable = False
 
     if "modelRelu" in version:
         model.add(Dense(width, input_dim=n_in, kernel_initializer='he_normal', kernel_regularizer=reg))
@@ -63,13 +67,13 @@ def get_model(version, n_in, compile_args, mode, n_out=1):
     elif "modelSwish" in version:
         model.add(Dense(width, input_dim=n_in, kernel_initializer='he_normal', kernel_regularizer=reg))
         if bn == 'pre': model.add(BatchNormalization())
-        model.add(Activation(swish))
+        model.add(Swish(trainable=trainable))
         if bn == 'post': model.add(BatchNormalization())
         if do: model.add(Dropout(do))
         for i in range(depth):
             model.add(Dense(width, kernel_initializer='he_normal', kernel_regularizer=reg))
             if bn == 'pre': model.add(BatchNormalization())
-            model.add(Activation(swish))
+            model.add(Swish(trainable=trainable))
             if bn == 'post': model.add(BatchNormalization())
             if do: model.add(Dropout(do))
     
