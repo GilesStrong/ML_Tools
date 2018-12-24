@@ -11,6 +11,7 @@ from .activations import swish, Swish
 Todo:
 - Combine get_model methods
 - Works out way to remove need for dense layer for continuous inputs in cat model
+- Change to class?
 '''
 
 
