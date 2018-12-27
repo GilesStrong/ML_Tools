@@ -1,4 +1,4 @@
-{
+{   "editor.autoIndent": true,
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.enabled": true,
@@ -8,5 +8,5 @@
     "python.linting.prospectorEnabled": false,
     "python.linting.pydocstyleEnabled": false,
     "python.linting.pylamaEnabled": false,
-    "python.linting.flake8Args": ["--ignore=E501 W293 W391 W291 E701 W504"],
+    "python.linting.flake8Args": ["--ignore=E252 E271 E221 E272 E226 E231 E241 E501 W293 W391 W291 E701 W504"],
 }
