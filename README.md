@@ -8,7 +8,7 @@ This adapts pretty frequently depending on the needs of my research, but I'm hop
 - Inclusion of recent deep learning techniques and practices, including:
     - Dynamic learning rate, momentum, beta_1: 
         - Cyclical, [Smith, 2015](https://arxiv.org/abs/1506.01186)
-        - Cosine annealed [Loschilov & Hutte, 2016](https://arxiv.org/abs/1608.03983)
+        - Cosine annealed [Loschilov & Hutter, 2016](https://arxiv.org/abs/1608.03983)
         - 1-cycle, [Smith, 2018](https://arxiv.org/abs/1803.09820)
     - HEP-specific data augmentation
     - Easy training and inference of ensembles of models. 
