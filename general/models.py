@@ -2,12 +2,12 @@ from __future__ import division
 from typing import Dict, Any, Union, Callable
 from tensorflow.python.framework.ops import Tensor
 
-from keras.models import Sequential, Model
-from keras.layers import Dense, Activation, AlphaDropout, Dropout, BatchNormalization, Concatenate, Embedding, Reshape, Input
+from keras.models import Model
+from keras.layers import Dense, Activation, AlphaDropout, Dropout, BatchNormalization, Input
 from keras.optimizers import Optimizer, Adam, SGD
 from keras.regularizers import l2
 
-from .activations import swish, Swish
+from .activations import Swish
 
 '''
 Todo:
@@ -79,7 +79,11 @@ class ModelBuilder(object):
         x = Dense(self.width, kernel_initializer=self.lookup_init(self.act), kernel_regularizer=reg)(x)
         x = act(x)
         if self.bn: x = BatchNormalization()(x)
-        if self.do: x = Dropout(self.do)(x)
+        if self.do: 
+            if self.act == 'selu':
+                x = AlphaDropout(self.do)(x)
+            else:
+                x = Dropout(self.do)(x)
         return x
 
     def get_head(self) -> Tensor:
