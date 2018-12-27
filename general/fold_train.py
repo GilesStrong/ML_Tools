@@ -20,7 +20,6 @@ from .ensemble_functions import ensemble_predict
 from .callbacks import OneCycle, CosAnnealLR, CosAnnealMom, LinearCLR, LinearCMom, SWA, LRFinder
 from .metrics import ams_scan_quick
 from .fold_yielder import FoldYielder
-from .models import get_model
 
 '''
 Todo:
@@ -47,8 +46,7 @@ def get_folds(n, n_splits):
     return train
 
 
-def fold_lr_find(fold_yielder,
-                 model_gen, model_gen_params,
+def fold_lr_find(fold_yielder, model_builder,
                  train_params, train_on_weights=True,
                  lr_bounds=[1e-5, 10], verbose=False, n_folds=-1):
 
@@ -67,8 +65,7 @@ def fold_lr_find(fold_yielder,
     lr_finders = []
     for index in indeces:
         model = None
-        model = model_gen(**model_gen_params)
-        model.reset_states  # Just checking
+        model = model_builder.get_model()
     
         train_fold = fold_yielder.get_fold(index)  # Load fold
         n_steps = np.ceil(len(train_fold['targets']) / train_params['batch_size'])
@@ -77,7 +74,7 @@ def fold_lr_find(fold_yielder,
 
         lrFinder = LRFinder(n_steps=n_steps, lr_bounds=lr_bounds, verbose=verbose)
 
-        if 'class' in model_gen_params['mode'].lower():
+        if 'class' in model_builder.objective:
             if binary is None:  # Check classification mode
                 binary = True
                 n_classes = len(np.unique(train_fold['targets']))
@@ -173,8 +170,7 @@ def get_feature(feature, datafile, n_folds=-1, ravel=True, set_fold=-1):
     return data
 
 
-def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
-                     model_gen=get_model,
+def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                      use_callbacks={},
                      train_on_weights=True, patience=10, max_epochs=10000,
                      plots=['history'], ams_args={'n_total': 0, 'br': 0, 'delta_b': 0},
@@ -196,7 +192,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
     results = []
     histories = []
     cycle_losses = []
-    if 'class' in model_gen_params['mode'].lower():
+    if 'class' in model_builder.objective:
         binary = None
     else:
         binary = False
@@ -226,8 +222,7 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
         trainID = get_folds(test_id, n_folds)  # Get fold indeces for training and testing for current fold
 
         model = None
-        model = model_gen(**model_gen_params)
-        model.reset_states  # Just checking
+        model = model_builder.get_model()
         
         test_fold = fold_yielder.get_fold(test_id)  # Load testing fold
 
@@ -272,11 +267,11 @@ def fold_train_model(fold_yielder, n_models, model_gen_params, train_params,
             if 'SWA' in use_callbacks:
                 swa_start = use_callbacks['SWA']['start']
                 if cycling:
-                    swa = SWA(swa_start, test_fold, model_gen(**model_gen_params), verbose,
+                    swa = SWA(swa_start, test_fold, model_builder.get_model(), verbose,
                               renewal=use_callbacks['SWA']['renewal'], lr_callback=lr_cycler, train_on_weights=train_on_weights,
                               sgd_replacement=use_callbacks['SWA']['sgd_replacement'])
                 else:
-                    swa = SWA(swa_start, test_fold, model_gen(**model_gen_params), verbose,
+                    swa = SWA(swa_start, test_fold, model_builder.get_model(), verbose,
                               renewal=use_callbacks['SWA']['renewal'], train_on_weights=train_on_weights,
                               sgd_replacement=use_callbacks['SWA']['sgd_replacement'])
                 callbacks.append(swa)
