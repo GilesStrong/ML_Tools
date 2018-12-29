@@ -11,6 +11,7 @@ import os
 from random import shuffle
 import sys
 from pathlib import Path
+from fastprogress import master_bar, progress_bar
 
 from sklearn.metrics import roc_auc_score
 
@@ -20,6 +21,10 @@ from .ensemble_functions import ensemble_predict
 from .callbacks import OneCycle, CosAnnealLR, CosAnnealMom, LinearCLR, LinearCMom, SWA, LRFinder
 from .metrics import ams_scan_quick
 from .fold_yielder import FoldYielder
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.set_style("whitegrid")
 
 '''
 Todo:
@@ -63,14 +68,14 @@ def fold_lr_find(fold_yielder, model_builder,
         indeces = range(min(n_folds, fold_yielder.n_folds))
     
     lr_finders = []
-    for index in indeces:
+    pb = progress_bar(indeces)
+    for index in pb:
         model = None
         model = model_builder.get_model()
     
         train_fold = fold_yielder.get_fold(index)  # Load fold
         n_steps = np.ceil(len(train_fold['targets']) / train_params['batch_size'])
-        if verbose:
-            print("Using {} steps".format(n_steps))   
+        if verbose: print("Using {n_steps} steps")   
 
         lrFinder = LRFinder(n_steps=n_steps, lr_bounds=lr_bounds, verbose=verbose)
 
@@ -79,11 +84,11 @@ def fold_lr_find(fold_yielder, model_builder,
                 binary = True
                 n_classes = len(np.unique(train_fold['targets']))
                 if n_classes > 2:
-                    print(n_classes, "classes found, running in multiclass mode\n")
+                    if verbose: print(n_classes, "classes found, running in multiclass mode\n")
                     train_fold['targets'] = utils.to_categorical(train_fold['targets'], num_classes=n_classes)
                     binary = False
                 else:
-                    print(n_classes, "classes found, running in binary mode\n")
+                    if verbose: print(n_classes, "classes found, running in binary mode\n")
 
         if train_on_weights:
             model.fit(train_fold['inputs'], train_fold['targets'],
@@ -207,7 +212,10 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
     n_folds = fold_yielder.n_folds
     nb = np.ceil(len(fold_yielder.source['fold_0/targets']) / train_params['batch_size'])
 
-    for model_num, test_id in enumerate(np.random.choice(range(n_folds), size=n_models, replace=False)):
+    mb = master_bar(np.random.choice(range(n_folds), size=n_models, replace=False))
+    mb.names = ['Train', "Validation", "Best"]
+    for model_num, test_id in enumerate(mb):
+        train_history = ([], [])
         model_start = timeit.default_timer()
         print("Training model", model_num + 1, "/", n_models)
         os.system(f"rm {saveloc}/best.h5")
@@ -234,32 +242,32 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
         swa_start = -1
 
         if 'OneCycle' in use_callbacks:
-            print("Using 1-cycle")
+            if verbose: print("Using 1-cycle")
             lr_cycler = OneCycle(**{'nb': nb, **use_callbacks['OneCycle']})
             callbacks.append(lr_cycler)
 
         else:
             if 'LinearCLR' in use_callbacks:
-                print("Using linear LR cycle")
+                if verbose: print("Using linear LR cycle")
                 cycling = True
                 lr_cycler = LinearCLR(**{'nb': nb, **use_callbacks['LinearCLR']})
                 callbacks.append(lr_cycler)
 
             elif 'CosAnnealLR' in use_callbacks:
-                print("Using cosine LR annealing")
+                if verbose: print("Using cosine LR annealing")
                 cycling = True
                 redux_decay = use_callbacks['CosAnnealLR']['redux_decay']
                 lr_cycler = CosAnnealLR(nb, use_callbacks['CosAnnealLR']['cycle_mult'], use_callbacks['CosAnnealLR']['reverse'], use_callbacks['CosAnnealLR']['scale'])
                 callbacks.append(lr_cycler)
 
             if 'LinearCMom' in use_callbacks:
-                print("Using linear momentum cycle")
+                if verbose: print("Using linear momentum cycle")
                 cycling = True
                 mom_cycler = LinearCMom(**{'nb': nb, **use_callbacks['LinearCMom']})
                 callbacks.append(mom_cycler)
 
             elif 'CosAnnealMom' in use_callbacks:
-                print("Using cosine momentum annealing")
+                if verbose: print("Using cosine momentum annealing")
                 cycling = True
                 mom_cycler = CosAnnealMom(**{'nb': nb, **use_callbacks['CosAnnealMom']})
                 callbacks.append(mom_cycler)
@@ -280,7 +288,9 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
         if cycling:
             cycle_losses.append({})
 
-        for epoch in range(max_epochs):
+        mb.update_graph([[0, 0], [0, 0], [0,0]])
+        epoch_pb = progress_bar(range(max_epochs))
+        for epoch in epoch_pb:
             for n in trainID:  # Loop through training folds
                 train_fold = fold_yielder.get_fold(n)  # Load fold data
                 subEpoch += 1
@@ -288,20 +298,20 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                     binary = True
                     n_classes = len(np.unique(train_fold['targets']))
                     if n_classes > 2:
-                        print(n_classes, "classes found, running in multiclass mode\n")
+                        if verbose: print(n_classes, "classes found, running in multiclass mode\n")
                         train_fold['targets'] = utils.to_categorical(train_fold['targets'], num_classes=n_classes)
                         binary = False
                     else:
-                        print(n_classes, "classes found, running in binary mode\n")
+                        if verbose: print(n_classes, "classes found, running in binary mode\n")
 
                 if train_on_weights:
-                    model.fit(train_fold['inputs'], train_fold['targets'],
-                              sample_weight=train_fold['weights'],
-                              callbacks=callbacks, **train_params)  # Train for one epoch
+                    hist = model.fit(train_fold['inputs'], train_fold['targets'],
+                                     sample_weight=train_fold['weights'],
+                                     callbacks=callbacks, **train_params)  # Train for one epoch
 
                     if swa_start >= 0 and swa.active:
                         losses = swa.get_losses()
-                        print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
+                        if verbose: print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
                         if losses['swa'] < losses['base']:
                             loss = losses['swa']
                             use_swa = True
@@ -313,13 +323,13 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                         loss = model.evaluate(test_fold['inputs'], test_fold['targets'], sample_weight=test_fold['weights'], verbose=0)
                     
                 else:
-                    model.fit(train_fold['inputs'], train_fold['targets'],
-                              class_weight='auto',
-                              callbacks=callbacks, **train_params)  # Train for one epoch
+                    hist = model.fit(train_fold['inputs'], train_fold['targets'],
+                                     class_weight='auto',
+                                     callbacks=callbacks, **train_params)  # Train for one epoch
                     
                     if swa_start >= 0 and swa.active:
                         losses = swa.get_losses()
-                        print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
+                        if verbose: print('{} swa loss {}, default loss {}'.format(subEpoch, losses['swa'], losses['base']))
                         if losses['swa'] < losses['base']:
                             loss = losses['swa']
                             use_swa = True
@@ -330,10 +340,10 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                         loss = model.evaluate(test_fold['inputs'], test_fold['targets'], verbose=0)
                 
                 if swa_start >= 0 and swa.active and cycling and lr_cycler.cycle_mult > 1:
-                    print("{} SWA loss:", subEpoch, loss)
+                    if verbose: print("{} SWA loss:", subEpoch, loss)
 
                 if cycling and lr_cycler.cycle_end and not redux_decay_active:
-                    print(f"Saving snapshot {lr_cycler.cycle_count}")
+                    if verbose: print(f"Saving snapshot {lr_cycler.cycle_count}")
                     cycle_losses[-1][lr_cycler.cycle_count] = loss
                     model.save(str(saveloc / f"{model_num}_cycle_{lr_cycler.cycle_count}.h5"), include_optimizer=False)
                 
@@ -349,6 +359,7 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
 
                 if loss <= best or best < 0:  # Save best
                     best = loss
+                    epoch_pb.comment = f'Epoch {subEpoch}, best: {best:.4E}'
                     if cycling:
                         if lr_cycler.lrs[-1] > 0:
                             bestLR = lr_cycler.lrs[-1]
@@ -361,8 +372,7 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                         model.save_weights(saveloc / "best.h5")
                     if redux_decay_active:
                         lr_cycler.lrs.append(float(K.get_value(model.optimizer.lr)))
-                    if verbose:
-                        print('{} New best found: {}'.format(subEpoch, best))
+                        if verbose: print('{} New best found: {}'.format(subEpoch, best))
                 elif cycling and not redux_decay_active:
                     if lr_cycler.cycle_end:
                         epoch_counter += 1
@@ -372,6 +382,11 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                         lr = 0.8 * float(K.get_value(model.optimizer.lr))
                         lr_cycler.lrs.append(lr)
                         K.set_value(model.optimizer.lr, lr)
+
+                train_history[0].append(hist.history['loss'])
+                train_history[1].append(loss)
+                x = np.arange(len(train_history[0]))
+                mb.update_graph([[x, train_history[0]], [x, train_history[1]], [x, best*np.ones_like(x)]])
 
                 if epoch_counter >= tmp_patience:  # Early stopping
                     if cycling and redux_decay and not redux_decay_active:
@@ -384,11 +399,10 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
                         callbacks = []
                         redux_decay_active = True
                     else:
-                        if verbose:
-                            print('Early stopping after {} epochs'.format(subEpoch))
+                        print('Early stopping after {} epochs'.format(subEpoch))
                         stop = True
                         break
-            
+                
             if stop:
                 break
 
@@ -415,6 +429,8 @@ def fold_train_model(fold_yielder, n_models, train_params, model_builder,
         
         print("Score is:", results[-1])
 
+        delattr(mb, 'fig')
+        plt.clf()
         if 'lr' in plots and not isinstance(lr_cycler, type(None)):
             lr_cycler.plot()
         if 'mom' in plots and not isinstance(mom_cycler, type(None)):
