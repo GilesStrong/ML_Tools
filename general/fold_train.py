@@ -17,7 +17,7 @@ from sklearn.metrics import roc_auc_score
 
 from .misc_functions import uncert_round
 from ..plotting_and_evaluation.plotters import plot_training_history, get_lr_finder_mean_plot
-from .ensemble_functions import ensemble_predict
+# from .ensemble_functions import ensemble_predict
 from .callbacks import OneCycle, CosAnnealLR, CosAnnealMom, LinearCLR, LinearCMom, SWA, LRFinder
 from .metrics import ams_scan_quick
 from .fold_yielder import FoldYielder
@@ -123,40 +123,40 @@ def save_fold_pred(pred, fold, datafile, pred_name='pred'):
     datafile[f'{fold}/{pred_name}'][...] = pred
 
 
-def fold_ensemble_predict(ensemble, weights, fold_yielder, pred_name='pred', n_out=1, output_pipe=None, ensemble_size=None, n_folds=-1, verbose=False):
-    if isinstance(ensemble_size, type(None)):
-        ensemble_size = len(ensemble)
+# def fold_ensemble_predict(ensemble, weights, fold_yielder, pred_name='pred', n_out=1, output_pipe=None, ensemble_size=None, n_folds=-1, verbose=False):
+#     if isinstance(ensemble_size, type(None)):
+#         ensemble_size = len(ensemble)
 
-    if not isinstance(fold_yielder, FoldYielder):
-        print("Passing HDF5 as input is depreciated, converting to FoldYielder")
-        fold_yielder = FoldYielder(fold_yielder)
+#     if not isinstance(fold_yielder, FoldYielder):
+#         print("Passing HDF5 as input is depreciated, converting to FoldYielder")
+#         fold_yielder = FoldYielder(fold_yielder)
 
-    if n_folds < 0:
-        n_folds = len(fold_yielder.source)
+#     if n_folds < 0:
+#         n_folds = len(fold_yielder.source)
 
-    for fold_id in range(n_folds):
-        if verbose:
-            print('Predicting fold {} out of {}'.format(fold_id + 1, n_folds))
-            start = timeit.default_timer()
+#     for fold_id in range(n_folds):
+#         if verbose:
+#             print('Predicting fold {} out of {}'.format(fold_id + 1, n_folds))
+#             start = timeit.default_timer()
 
-        if not fold_yielder.test_time_aug:
-            fold = fold_yielder.get_fold(fold_id)['inputs']
-            pred = ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe)
+#         if not fold_yielder.test_time_aug:
+#             fold = fold_yielder.get_fold(fold_id)['inputs']
+#             pred = ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe)
 
-        else:
-            tmpPred = []
-            for aug in range(fold_yielder.aug_mult):  # Multithread this?
-                fold = fold_yielder.get_test_fold(fold_id, aug)['inputs']
-                tmpPred.append(ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe))
-            pred = np.mean(tmpPred, axis=0)
+#         else:
+#             tmpPred = []
+#             for aug in range(fold_yielder.aug_mult):  # Multithread this?
+#                 fold = fold_yielder.get_test_fold(fold_id, aug)['inputs']
+#                 tmpPred.append(ensemble_predict(fold, ensemble, weights, n=ensemble_size, n_out=n_out, output_pipe=output_pipe))
+#             pred = np.mean(tmpPred, axis=0)
 
-        if verbose: 
-            print("Prediction took {}s per sample\n".format((timeit.default_timer() - start) / len(fold)))
+#         if verbose: 
+#             print("Prediction took {}s per sample\n".format((timeit.default_timer() - start) / len(fold)))
 
-        if n_out > 1:
-            save_fold_pred(pred, 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
-        else:
-            save_fold_pred(pred[:, 0], 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
+#         if n_out > 1:
+#             save_fold_pred(pred, 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
+#         else:
+#             save_fold_pred(pred[:, 0], 'fold_' + str(fold_id), fold_yielder.source, pred_name=pred_name)
 
 
 def get_feature(feature, datafile, n_folds=-1, ravel=True, set_fold=-1):
